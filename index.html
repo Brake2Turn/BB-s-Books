@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>BB's Books</title>
+  <meta name="description" content="A little library for every book BB owns.">
+  <meta name="theme-color" content="#3b2a24">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BB's Books">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>BB's Books</h1>
+      <p id="count" class="muted">Your library</p>
+    </div>
+    <button id="menuBtn" class="icon-btn" aria-label="Library options" aria-haspopup="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+    </button>
+    <div id="menu" class="menu" hidden>
+      <button data-action="export">Back up library</button>
+      <label class="menu-item">Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search your shelves" autocomplete="off" aria-label="Search your library">
+    <select id="sort" aria-label="Sort books">
+      <option value="added">Newest</option>
+      <option value="title">Title</option>
+      <option value="author">Author</option>
+      <option value="rating">Rating</option>
+    </select>
+  </div>
+
+  <main>
+    <section id="library" class="shelf" aria-label="Library"></section>
+    <div id="empty" class="empty" hidden>
+      <div class="empty-art" aria-hidden="true">📚</div>
+      <h2>The shelves are empty</h2>
+      <p>Tap <strong>Scan a book</strong> and point the camera at a barcode or a cover to add your first book.</p>
+    </div>
+  </main>
+
+  <button id="scanBtn" class="fab">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>
+    Scan a book
+  </button>
+
+  <!-- Scanner -->
+  <dialog id="scanner" class="sheet scanner">
+    <div class="scanner-head">
+      <div class="seg" role="tablist" aria-label="Scan mode">
+        <button role="tab" data-mode="barcode" aria-selected="true">Barcode</button>
+        <button role="tab" data-mode="cover" aria-selected="false">Cover</button>
+      </div>
+      <button class="icon-btn light" data-close aria-label="Close scanner">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="viewfinder">
+      <video id="video" playsinline muted></video>
+      <div id="frame" class="frame frame-barcode"></div>
+      <p id="scanHint" class="scan-hint">Line the barcode up inside the box</p>
+    </div>
+    <div class="scanner-foot">
+      <button id="captureBtn" class="shutter" aria-label="Take photo of cover" hidden></button>
+      <p id="scanStatus" class="scan-status" aria-live="polite"></p>
+    </div>
+    <div id="results" class="results" hidden>
+      <h3>Which book is it?</h3>
+      <ul id="resultList"></ul>
+      <button id="retakeBtn" class="btn ghost">Try again</button>
+    </div>
+  </dialog>
+
+  <!-- Book detail -->
+  <dialog id="detail" class="sheet detail">
+    <button class="icon-btn close-detail" data-close aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="detail-scroll">
+      <div class="detail-cover"></div>
+      <div class="detail-body">
+        <h2 id="dTitle"></h2>
+        <p id="dAuthor" class="author"></p>
+        <p id="dMeta" class="muted small"></p>
+        <h3>Blurb</h3>
+        <div id="dBlurb" class="blurb"></div>
+
+        <h3>Your rating</h3>
+        <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
+
+        <h3><label for="dReview">Your review</label></h3>
+        <textarea id="dReview" rows="6" placeholder="What did you think?"></textarea>
+        <div class="detail-actions">
+          <button id="saveBtn" class="btn primary">Save review</button>
+          <span id="saved" class="muted small" aria-live="polite"></span>
+        </div>
+        <button id="deleteBtn" class="btn danger-link">Remove from library</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="vendor/zxing/zxing-reader.js"></script>
+  <script src="vendor/tesseract/tesseract.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
