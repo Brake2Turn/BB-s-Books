@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 
@@ -12,7 +12,13 @@ const SHELL_FILES = [
   'js/db.js',
   'js/lookup.js',
   'js/scanner.js',
-  'js/reveal.js',
+  'js/scan-flow.js',
+  'js/covers.js',
+  'js/icons.js',
+  'js/demo.js',
+  'fonts/fraunces-latin-full-normal.woff2',
+  'fonts/fraunces-latin-full-italic.woff2',
+  'fonts/instrument-sans-latin-wght-normal.woff2',
   'icons/icon.svg',
   'icons/icon-180.png',
   'vendor/zxing/zxing-reader.js',
@@ -60,8 +66,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cover images: cache first so the shelves still look full offline.
-  if (req.destination === 'image') {
+  // Cover images: cache first so the shelves still look full offline. Colour sampling
+  // makes CORS requests for the same URLs; those skip the cache so the two never mix.
+  if (req.destination === 'image' && req.mode === 'no-cors') {
     event.respondWith(
       caches.open(COVERS).then((c) => c.match(req).then((hit) => hit || fetch(req).then((res) => {
         c.put(req, res.clone());

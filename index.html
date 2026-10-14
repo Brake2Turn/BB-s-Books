@@ -4,138 +4,181 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BB's Books</title>
-  <meta name="description" content="A little library for every book BB owns.">
-  <meta name="theme-color" content="#3b2a24">
+  <meta name="description" content="A personal library for every book BB owns.">
+  <meta name="theme-color" content="#F1E9DC" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#2B241F" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="BB's Books">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preload" href="fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <h1>BB's Books</h1>
-      <p id="count" class="muted">Your library</p>
+      <p id="count" class="count"></p>
     </div>
-    <button id="menuBtn" class="icon-btn" aria-label="Library options" aria-haspopup="true">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-    </button>
+    <button id="menuBtn" class="icon-btn" aria-label="Library options" aria-haspopup="true" aria-expanded="false"><i data-icon="more"></i></button>
     <div id="menu" class="menu" hidden>
-      <button data-action="export">Back up library</button>
-      <label class="menu-item">Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+      <button data-action="export"><i data-icon="download"></i>Back up library</button>
+      <label class="menu-item"><i data-icon="upload"></i>Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
     </div>
   </header>
 
   <div class="toolbar">
-    <input id="search" type="search" placeholder="Search your shelves" autocomplete="off" aria-label="Search your library">
-    <select id="sort" aria-label="Sort books">
-      <option value="added">Newest</option>
-      <option value="title">Title</option>
-      <option value="author">Author</option>
-      <option value="rating">Rating</option>
-    </select>
+    <label class="search">
+      <i data-icon="search"></i>
+      <input id="search" type="search" placeholder="Search your shelves" autocomplete="off" aria-label="Search your library">
+    </label>
+    <div class="view-toggle" role="group" aria-label="Library view">
+      <button data-view="grid" aria-pressed="true" aria-label="Cover grid"><i data-icon="grid"></i></button>
+      <button data-view="shelf" aria-pressed="false" aria-label="Shelf of spines"><i data-icon="shelf"></i></button>
+    </div>
+  </div>
+  <div class="filters">
+    <label class="quiet-select">
+      <span class="visually-hidden">Sort</span>
+      <select id="sort">
+        <option value="added">Recently added</option>
+        <option value="title">Title</option>
+        <option value="author">Author</option>
+        <option value="rating">Your rating</option>
+      </select>
+      <i data-icon="chevron"></i>
+    </label>
+    <label class="quiet-select">
+      <span class="visually-hidden">Show</span>
+      <select id="filter">
+        <option value="">All books</option>
+        <option value="want">Want to read</option>
+        <option value="reading">Reading</option>
+        <option value="read">Read</option>
+      </select>
+      <i data-icon="chevron"></i>
+    </label>
   </div>
 
   <main>
-    <section id="library" class="shelf" aria-label="Library"></section>
+    <section id="library" class="grid" aria-label="Library"></section>
     <div id="empty" class="empty" hidden>
-      <div class="empty-art" aria-hidden="true">📚</div>
-      <h2>The shelves are empty</h2>
-      <p>Tap <strong>Scan a book</strong> and point the camera at a barcode or a cover to add your first book.</p>
+      <p class="empty-line">Every library begins with a single book.</p>
+      <p class="empty-sub">Scan the barcode on the back, or the front cover, to place it on the shelf.</p>
     </div>
+    <p id="noMatch" class="empty-sub no-match" hidden>Nothing on the shelves matches that.</p>
   </main>
 
-  <button id="scanBtn" class="fab">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>
-    Scan a book
-  </button>
+  <button id="scanBtn" class="fab"><i data-icon="scan"></i>Scan a book</button>
 
-  <!-- Scanner -->
-  <dialog id="scanner" class="sheet scanner">
-    <div class="scanner-head">
-      <div class="seg" role="tablist" aria-label="Scan mode">
+  <!-- Scan -->
+  <dialog id="scanner" class="scanner" aria-label="Scan a book">
+    <div class="camera">
+      <video id="video" playsinline muted></video>
+      <div id="frame" class="frame frame-barcode">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+    </div>
+
+    <div class="scan-top">
+      <button class="icon-btn on-dark" data-close aria-label="Close"><i data-icon="x"></i></button>
+      <div class="seg on-dark" role="tablist" aria-label="What to scan">
         <button role="tab" data-mode="barcode" aria-selected="true">Barcode</button>
         <button role="tab" data-mode="cover" aria-selected="false">Cover</button>
       </div>
-      <button class="icon-btn light" data-close aria-label="Close scanner">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
+      <span class="spacer"></span>
     </div>
-    <div class="viewfinder">
-      <video id="video" playsinline muted></video>
-      <div id="frame" class="frame frame-barcode"></div>
-      <p id="scanHint" class="scan-hint">Line the barcode up inside the box</p>
-    </div>
-    <div class="scanner-foot">
-      <button id="captureBtn" class="shutter" aria-label="Take photo of cover" hidden></button>
-      <p id="scanStatus" class="scan-status" aria-live="polite"></p>
-      <label class="photo-link">or use a photo instead<input id="photoInput" type="file" accept="image/*" hidden></label>
-    </div>
-    <div id="results" class="results" hidden>
-      <h3>Which book is it?</h3>
-      <ul id="resultList"></ul>
-      <button id="retakeBtn" class="btn ghost">Try again</button>
-    </div>
-  </dialog>
 
-  <!-- Found a book! -->
-  <dialog id="reveal" class="reveal" aria-label="Book found">
-    <div class="reveal-bg"></div>
-    <div class="reveal-stage">
-      <div class="reveal-book">
-        <div class="burst" aria-hidden="true"></div>
-        <div class="flip-inner">
-          <div class="flip-back" aria-hidden="true">
-            <span class="mystery">?</span>
-          </div>
-          <div class="flip-front"></div>
+    <div class="scan-bottom">
+      <p id="scanHint" class="scan-hint">Hold the barcode on the back inside the frame</p>
+      <p id="scanStatus" class="scan-status" aria-live="polite"></p>
+      <button id="captureBtn" class="shutter" aria-label="Take photo" hidden></button>
+      <div class="scan-alt">
+        <label class="chip on-dark"><i data-icon="image"></i>Use a photo<input id="photoInput" type="file" accept="image/*" hidden></label>
+        <button id="searchOpen" class="chip on-dark"><i data-icon="search"></i>Search by title</button>
+      </div>
+    </div>
+
+    <!-- Result sheet -->
+    <section id="resultSheet" class="sheet" aria-label="Book found" aria-hidden="true">
+      <div class="handle" aria-hidden="true"></div>
+      <div class="result-main">
+        <div class="result-cover"></div>
+        <div class="result-text">
+          <p class="label">Found it</p>
+          <h2 class="result-title"></h2>
+          <p class="result-author"></p>
+          <p class="result-meta meta"></p>
         </div>
       </div>
-    </div>
-    <div class="reveal-info">
-      <p class="reveal-kicker">Found it!</p>
-      <h2 class="reveal-title"></h2>
-      <p class="reveal-author"></p>
-      <p class="reveal-note" hidden>This one’s already on your shelves.</p>
-      <p class="reveal-blurb"></p>
-      <div class="reveal-actions">
-        <button class="btn primary" data-choice="primary">Add to my library</button>
-        <button class="btn ghost-light" data-choice="secondary">Not this one</button>
+      <p class="result-blurb"></p>
+      <p class="result-note" hidden></p>
+      <button class="text-btn cover-swap" hidden><i data-icon="camera"></i><span></span></button>
+      <div class="sheet-actions">
+        <button class="btn primary" data-choice="primary">Add to library</button>
+        <button class="text-btn" data-choice="secondary">Not this one</button>
       </div>
-    </div>
+    </section>
+
+    <!-- Search / pick-a-match sheet -->
+    <section id="listSheet" class="sheet" aria-label="Find a book" aria-hidden="true">
+      <div class="handle" aria-hidden="true"></div>
+      <h2 class="sheet-title"></h2>
+      <p class="sheet-sub"></p>
+      <form id="searchForm" class="search sheet-search" hidden>
+        <i data-icon="search"></i>
+        <input id="searchInput" type="search" placeholder="Title, author or both" autocomplete="off" aria-label="Search for a book" enterkeyhint="search">
+      </form>
+      <ul id="resultList" class="result-list"></ul>
+      <div class="sheet-actions">
+        <button id="listBack" class="text-btn">Back to the camera</button>
+      </div>
+    </section>
   </dialog>
 
   <!-- Book detail -->
-  <dialog id="detail" class="sheet detail">
-    <button class="icon-btn close-detail" data-close aria-label="Close">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
+  <dialog id="detail" class="detail" aria-labelledby="dTitle">
+    <button class="icon-btn close-detail" data-close aria-label="Back to library"><i data-icon="x"></i></button>
     <div class="detail-scroll">
-      <div class="detail-cover"></div>
+      <div class="detail-hero"><div class="detail-cover"></div></div>
       <div class="detail-body">
-        <h2 id="dTitle"></h2>
-        <p id="dAuthor" class="author"></p>
-        <p id="dMeta" class="muted small"></p>
-        <h3>Blurb</h3>
-        <div id="dBlurb" class="blurb"></div>
+        <h2 id="dTitle" class="detail-title"></h2>
+        <p id="dAuthor" class="detail-author"></p>
+        <p id="dMeta" class="meta"></p>
 
-        <h3>Your rating</h3>
-        <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
-
-        <h3><label for="dReview">Your review</label></h3>
-        <textarea id="dReview" rows="6" placeholder="What did you think?"></textarea>
-        <div class="detail-actions">
-          <button id="saveBtn" class="btn primary">Save review</button>
-          <span id="saved" class="muted small" aria-live="polite"></span>
+        <div class="status seg" role="radiogroup" aria-label="Reading status">
+          <button role="radio" data-status="want" aria-checked="false">Want to read</button>
+          <button role="radio" data-status="reading" aria-checked="false">Reading</button>
+          <button role="radio" data-status="read" aria-checked="false">Read</button>
         </div>
-        <button id="deleteBtn" class="btn danger-link">Remove from library</button>
+
+        <section class="detail-section">
+          <h3 class="label">Blurb</h3>
+          <p id="dBlurb" class="blurb"></p>
+        </section>
+
+        <section class="detail-section">
+          <h3 class="label">Your rating</h3>
+          <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
+        </section>
+
+        <section class="detail-section">
+          <h3 class="label"><label for="dReview">Your review</label></h3>
+          <textarea id="dReview" rows="6" placeholder="What stayed with you?"></textarea>
+          <div class="review-actions">
+            <button id="saveBtn" class="btn primary">Save review</button>
+            <span id="saved" class="meta" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <section class="detail-section quiet-actions">
+          <button id="recoverBtn" class="text-btn"><i data-icon="camera"></i>Use a photo of my copy as the cover</button>
+          <button id="deleteBtn" class="text-btn danger"><i data-icon="trash"></i>Remove from library</button>
+        </section>
       </div>
     </div>
   </dialog>

@@ -1,5 +1,7 @@
 // Tiny IndexedDB wrapper. Everything is stored on the device.
-const DB_NAME = 'bbs-books';
+// ?demo opens a separate sample library so trying things out never touches the real one.
+export const DEMO = new URLSearchParams(location.search).has('demo');
+const DB_NAME = DEMO ? 'bbs-books-demo' : 'bbs-books';
 const STORE = 'books';
 
 let dbPromise;

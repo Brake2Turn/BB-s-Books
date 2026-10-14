@@ -1,4 +1,6 @@
 // Book metadata lookups: Google Books first (best blurbs), Open Library as backup.
+import { editionCoverUrls, firstWorking } from './covers.js';
+
 const GOOGLE = 'https://www.googleapis.com/books/v1/volumes';
 const OL = 'https://openlibrary.org';
 
@@ -14,11 +16,12 @@ function stripHtml(html) {
   return doc.body.textContent.trim();
 }
 
-function googleCover(links) {
+/** Google cover URLs, sharpest first (the fife size hint isn't honoured for every book). */
+function googleCovers(links) {
   const url = links && (links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail);
-  if (!url) return '';
-  // Ask Google for a bigger rendition than the default thumbnail.
-  return url.replace(/^http:/, 'https:').replace('&edge=curl', '') + '&fife=w800';
+  if (!url) return [];
+  const clean = url.replace(/^http:/, 'https:').replace('&edge=curl', '');
+  return [`${clean}&fife=w800`, clean];
 }
 
 function fromGoogle(item) {
@@ -30,7 +33,8 @@ function fromGoogle(item) {
     title: [v.title, v.subtitle].filter(Boolean).join(': '),
     authors: v.authors || [],
     blurb: stripHtml(v.description),
-    cover: googleCover(v.imageLinks),
+    cover: googleCovers(v.imageLinks)[1] || '',
+    coverCandidates: googleCovers(v.imageLinks),
     isbn: (isbn13 || isbn10 || {}).identifier || '',
     publisher: v.publisher || '',
     published: v.publishedDate || '',
@@ -63,6 +67,7 @@ async function openLibraryByIsbn(isbn) {
     authors: (b.authors || []).map((a) => a.name),
     blurb: await openLibraryBlurb(workKey),
     cover: (b.cover && (b.cover.large || b.cover.medium)) || '',
+    coverCandidates: b.cover ? [b.cover.large, b.cover.medium].filter(Boolean) : [],
     isbn,
     publisher: (b.publishers && b.publishers[0] && b.publishers[0].name) || '',
     published: b.publish_date || '',
@@ -93,10 +98,14 @@ export async function byIsbn(isbn) {
     if (g.status === 'rejected' && o.status === 'rejected') throw new Error('Could not reach the book databases. Are you online?');
     return null;
   }
-  // Open Library covers tend to be the real printed edition, Google blurbs are fuller.
   const book = merge(google, ol);
-  if (ol && ol.cover) book.cover = ol.cover;
   book.isbn = isbn;
+  // Edition-specific sources first, then whatever the databases suggested.
+  book.coverCandidates = [
+    ...editionCoverUrls(isbn),
+    ...((google && google.coverCandidates) || []),
+    ...((ol && ol.coverCandidates) || []),
+  ];
   return book;
 }
 
@@ -114,7 +123,8 @@ export async function search(text, limit = 6) {
     title: doc.title,
     authors: doc.author_name || [],
     blurb: '',
-    cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : '',
+    cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+    coverCandidates: doc.cover_i ? [`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`] : [],
     isbn: (doc.isbn || []).find((i) => i.length === 13) || (doc.isbn || [])[0] || '',
     publisher: (doc.publisher || [])[0] || '',
     published: doc.first_publish_year ? String(doc.first_publish_year) : '',
@@ -134,4 +144,14 @@ export async function fillBlurb(book) {
     } catch { /* keep what we have */ }
   }
   return book;
+}
+
+/**
+ * Settle on the picture for a book: the first candidate that actually loads.
+ * Sets cover/coverRatio, or clears cover if nothing works.
+ */
+export async function resolveCover(book) {
+  const urls = [...editionCoverUrls(book.isbn), ...(book.coverCandidates || []), book.cover];
+  const hit = await firstWorking(urls);
+  return { ...book, cover: hit ? hit.url : '', coverRatio: hit ? `${hit.w} / ${hit.h}` : '' };
 }

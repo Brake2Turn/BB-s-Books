@@ -1,13 +1,13 @@
 {
   "name": "BB's Books",
   "short_name": "BB's Books",
-  "description": "A little library for every book BB owns.",
+  "description": "A personal library for every book BB owns.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f6f0e6",
-  "theme_color": "#3b2a24",
+  "background_color": "#F1E9DC",
+  "theme_color": "#F1E9DC",
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
