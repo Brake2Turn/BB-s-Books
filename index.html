@@ -76,11 +76,39 @@
     <div class="scanner-foot">
       <button id="captureBtn" class="shutter" aria-label="Take photo of cover" hidden></button>
       <p id="scanStatus" class="scan-status" aria-live="polite"></p>
+      <label class="photo-link">or use a photo instead<input id="photoInput" type="file" accept="image/*" hidden></label>
     </div>
     <div id="results" class="results" hidden>
       <h3>Which book is it?</h3>
       <ul id="resultList"></ul>
       <button id="retakeBtn" class="btn ghost">Try again</button>
+    </div>
+  </dialog>
+
+  <!-- Found a book! -->
+  <dialog id="reveal" class="reveal" aria-label="Book found">
+    <div class="reveal-bg"></div>
+    <div class="reveal-stage">
+      <div class="reveal-book">
+        <div class="burst" aria-hidden="true"></div>
+        <div class="flip-inner">
+          <div class="flip-back" aria-hidden="true">
+            <span class="mystery">?</span>
+          </div>
+          <div class="flip-front"></div>
+        </div>
+      </div>
+    </div>
+    <div class="reveal-info">
+      <p class="reveal-kicker">Found it!</p>
+      <h2 class="reveal-title"></h2>
+      <p class="reveal-author"></p>
+      <p class="reveal-note" hidden>This one’s already on your shelves.</p>
+      <p class="reveal-blurb"></p>
+      <div class="reveal-actions">
+        <button class="btn primary" data-choice="primary">Add to my library</button>
+        <button class="btn ghost-light" data-choice="secondary">Not this one</button>
+      </div>
     </div>
   </dialog>
 

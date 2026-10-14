@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 
@@ -12,6 +12,7 @@ const SHELL_FILES = [
   'js/db.js',
   'js/lookup.js',
   'js/scanner.js',
+  'js/reveal.js',
   'icons/icon.svg',
   'icons/icon-180.png',
   'vendor/zxing/zxing-reader.js',

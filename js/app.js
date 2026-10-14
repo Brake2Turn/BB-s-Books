@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import * as lookup from './lookup.js';
 import * as scanner from './scanner.js';
+import * as reveal from './reveal.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -17,6 +18,7 @@ const els = {
   scanHint: $('#scanHint'),
   scanStatus: $('#scanStatus'),
   captureBtn: $('#captureBtn'),
+  photoInput: $('#photoInput'),
   results: $('#results'),
   resultList: $('#resultList'),
   retakeBtn: $('#retakeBtn'),
@@ -128,11 +130,12 @@ function sortedFiltered() {
   return list.sort(cmp);
 }
 
-function render() {
+function render(incomingId) {
   const list = sortedFiltered();
   els.library.replaceChildren(...list.map((book) => {
     const btn = document.createElement('button');
-    btn.className = 'book';
+    btn.className = book.id === incomingId ? 'book incoming' : 'book';
+    btn.dataset.id = book.id;
     btn.setAttribute('aria-label', `${book.title}${book.authors?.length ? ` by ${authorLine(book)}` : ''}`);
     btn.append(coverEl(book));
     if (book.rating) {
@@ -154,12 +157,7 @@ async function load() {
   render();
 }
 
-async function addBook(data, photo) {
-  const dup = findDuplicate(data);
-  if (dup) {
-    toast(`“${dup.title}” is already in your library`);
-    return dup;
-  }
+async function saveBook(data, photo) {
   const book = {
     id: uid(),
     title: data.title || 'Untitled',
@@ -177,9 +175,44 @@ async function addBook(data, photo) {
   };
   await db.put(book);
   books.push(book);
-  render();
-  toast(`Added “${book.title}”`);
   return book;
+}
+
+/** A scan found a book: show it off, and let her decide whether it goes on the shelf. */
+async function presentFound(data, photo) {
+  closeScanner();
+  const dup = findDuplicate(data);
+  const preview = { ...data, photo: data.cover ? '' : photo };
+  const choice = await reveal.show(preview, coverEl(preview), { duplicate: !!dup });
+
+  if (dup) {
+    reveal.close();
+    if (choice === 'primary') openDetail(dup.id);
+    return;
+  }
+  if (choice !== 'primary') {
+    await reveal.dismiss();
+    return;
+  }
+
+  const book = await saveBook(data, photo);
+  els.search.value = ''; // make sure the new book is visible
+  render(book.id);
+  const tile = els.library.querySelector(`[data-id="${book.id}"]`);
+  tile.scrollIntoView({ block: 'center', behavior: 'instant' });
+  await reveal.plopInto(tile);
+  tile.classList.remove('incoming');
+  tile.classList.add('landed');
+  // Neighbours on the same shelf get knocked about a bit.
+  [...els.library.children]
+    .filter((el) => el !== tile && Math.abs(el.offsetTop - tile.offsetTop) < 4)
+    .forEach((el) => {
+      el.classList.add('jiggle');
+      el.addEventListener('animationend', () => el.classList.remove('jiggle'), { once: true });
+    });
+  tile.addEventListener('animationend', () => tile.classList.remove('landed'), { once: true });
+  if (navigator.vibrate) navigator.vibrate([20, 40, 30]);
+  toast(`“${book.title}” is on the shelf`);
 }
 
 // ---------- Scanner ----------
@@ -193,13 +226,13 @@ function setMode(next) {
   els.scanner.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
   els.frame.className = `frame frame-${mode}`;
   els.results.hidden = true;
-  els.captureBtn.hidden = mode !== 'cover';
+  els.captureBtn.hidden = mode !== 'cover' || !scanner.cameraLive();
   els.scanHint.textContent = mode === 'barcode'
     ? 'Line the barcode on the back up inside the box'
     : 'Fit the front cover inside the frame, then tap the button';
   setStatus('');
   scanner.stopBarcodeLoop();
-  if (mode === 'barcode') beginBarcode();
+  if (mode === 'barcode' && scanner.cameraLive()) beginBarcode();
 }
 
 function beginBarcode() {
@@ -210,6 +243,11 @@ function beginBarcode() {
   });
 }
 
+function retryBarcodeSoon() {
+  busy = false;
+  setTimeout(() => { if (els.scanner.open && mode === 'barcode' && scanner.cameraLive() && !busy) beginBarcode(); }, 2500);
+}
+
 async function handleIsbn(isbn) {
   busy = true;
   if (navigator.vibrate) navigator.vibrate(60);
@@ -218,15 +256,13 @@ async function handleIsbn(isbn) {
     const book = await lookup.byIsbn(isbn);
     if (!book) {
       setStatus('Couldn’t find that book. Try scanning the cover instead.');
-      setTimeout(() => { if (els.scanner.open && mode === 'barcode') beginBarcode(); }, 2500);
+      retryBarcodeSoon();
       return;
     }
-    const added = await addBook(book);
-    closeScanner();
-    openDetail(added.id);
+    await presentFound(book);
   } catch (err) {
     setStatus(err.message);
-    setTimeout(() => { if (els.scanner.open && mode === 'barcode') beginBarcode(); }, 2500);
+    retryBarcodeSoon();
   }
 }
 
@@ -235,7 +271,10 @@ async function handleCapture() {
   busy = true;
   els.captureBtn.disabled = true;
   els.video.pause();
-  const shot = scanner.capturePhoto(els.video, els.frame);
+  await readCover(scanner.capturePhoto(els.video, els.frame));
+}
+
+async function readCover(shot) {
   const photo = shot.toDataURL('image/jpeg', 0.8);
   try {
     setStatus('Reading the cover…');
@@ -281,9 +320,7 @@ function showResults(found, photo) {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       const full = await lookup.fillBlurb(b);
-      const added = await addBook(full, photo);
-      closeScanner();
-      openDetail(added.id);
+      await presentFound(full, photo);
     });
     li.append(btn);
     return li;
@@ -298,9 +335,10 @@ async function openScanner() {
     await scanner.startCamera(els.video);
     setMode(mode);
   } catch (err) {
+    setMode(mode);
     setStatus(err.name === 'NotAllowedError'
-      ? 'Camera access was blocked. Allow the camera for this site in your settings, then try again.'
-      : err.message);
+      ? 'Camera access was blocked. Allow the camera for this site in your settings, or use a photo instead.'
+      : `${err.name === 'NotFoundError' ? 'No camera found.' : err.message} You can use a photo instead.`);
   }
 }
 
@@ -416,6 +454,29 @@ async function importLibrary(file) {
 els.scanBtn.addEventListener('click', openScanner);
 els.scanner.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 els.captureBtn.addEventListener('click', handleCapture);
+els.photoInput.addEventListener('change', async () => {
+  const file = els.photoInput.files[0];
+  els.photoInput.value = '';
+  if (!file || busy) return;
+  busy = true;
+  scanner.stopBarcodeLoop();
+  els.results.hidden = true;
+  try {
+    const canvas = await scanner.fileToCanvas(file);
+    if (mode === 'barcode') {
+      setStatus('Looking for a barcode…');
+      const isbn = await scanner.readBarcodeFromCanvas(canvas);
+      if (!isbn) throw new Error('Couldn’t find an ISBN barcode in that photo. Try a closer, sharper one, or switch to Cover.');
+      await handleIsbn(isbn);
+    } else {
+      await readCover(canvas);
+    }
+  } catch (err) {
+    busy = false;
+    setStatus(err.message);
+    if (mode === 'barcode' && scanner.cameraLive()) beginBarcode();
+  }
+});
 els.retakeBtn.addEventListener('click', () => { setStatus(''); resumeCover(); });
 els.scanner.addEventListener('close', () => scanner.stopCamera(els.video));
 els.scanner.querySelector('[data-close]').addEventListener('click', closeScanner);

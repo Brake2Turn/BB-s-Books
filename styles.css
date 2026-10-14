@@ -430,6 +430,7 @@ textarea:focus, .toolbar input:focus, .toolbar select:focus { outline: 2px solid
   left: 50%;
   bottom: calc(96px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px);
+  width: max-content;
   max-width: calc(100% - 32px);
   padding: 12px 18px;
   border-radius: 12px;
@@ -445,4 +446,146 @@ textarea:focus, .toolbar input:focus, .toolbar select:focus { outline: 2px solid
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Photo fallback in the scanner ---------- */
+.photo-link {
+  color: #d9cbbd;
+  font-size: .9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* ---------- Found-a-book reveal ---------- */
+.reveal {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  color: #fff;
+  overflow: hidden;
+}
+.reveal[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.reveal::backdrop { background: transparent; }
+.reveal-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 214, 140, .35), transparent 55%),
+    rgba(28, 18, 14, .86);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.reveal-stage {
+  position: relative;
+  perspective: 1200px;
+  padding-top: env(safe-area-inset-top);
+}
+.reveal-book {
+  position: relative;
+  width: min(56vw, 34vh, 260px);
+  aspect-ratio: 2 / 3;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.flip-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.flip-back, .flip-front {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 5px 10px 10px 5px;
+  overflow: hidden;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .6);
+}
+.flip-front { transform: rotateY(180deg); }
+.flip-front .cover { height: 100%; border-radius: inherit; box-shadow: none; }
+.flip-back {
+  display: grid;
+  place-items: center;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 10px, transparent 10px 20px),
+    linear-gradient(160deg, #a14a39, #5c2a22);
+  border: 3px solid rgba(255, 230, 190, .35);
+}
+.mystery {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 5rem;
+  font-weight: 700;
+  color: #f5c542;
+  text-shadow: 0 4px 18px rgba(245, 197, 66, .6);
+  animation: glow 1.2s ease-in-out infinite alternate;
+}
+@keyframes glow { from { opacity: .7; transform: scale(.94); } to { opacity: 1; transform: scale(1.06); } }
+.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: -1; }
+.burst span { position: absolute; left: 0; top: 0; font-size: 1.6rem; line-height: 1; }
+
+.reveal-info {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 22px 20px calc(16px + env(safe-area-inset-bottom));
+  text-align: center;
+  opacity: 0;
+  transform: translateY(24px);
+  pointer-events: none;
+  transition: opacity .35s ease, transform .45s cubic-bezier(.2, .8, .2, 1.2);
+}
+.reveal.show-info .reveal-info { opacity: 1; transform: none; pointer-events: auto; }
+.reveal-kicker {
+  margin: 0 0 4px;
+  color: #f5c542;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-size: .78rem;
+}
+.reveal-title { font-size: 1.55rem; }
+.reveal-author { margin: 4px 0 0; color: #f1d9c3; }
+.reveal-note { margin: 10px 0 0; color: #f5c542; font-weight: 500; }
+.reveal-blurb {
+  margin: 12px 0 0;
+  color: #d9cbbd;
+  font-size: .92rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.reveal-actions { display: grid; gap: 10px; margin-top: 20px; }
+.reveal-actions .btn.primary { background: #f5c542; color: #2b211d; font-size: 1.05rem; padding: 14px 22px; }
+.btn.ghost-light { background: none; color: #f1e6da; border: 1px solid rgba(255, 255, 255, .3); }
+
+/* ---------- Landing on the shelf ---------- */
+.book.incoming { visibility: hidden; }
+.book.landed { animation: settle .45s cubic-bezier(.3, 1.6, .5, 1); }
+.book.landed::before { /* puff of dust */
+  content: "";
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -10px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--muted) 55%, transparent), transparent 70%);
+  animation: puff .7s ease-out forwards;
+  pointer-events: none;
+}
+.book.jiggle { animation: jiggle .45s ease-out; }
+@keyframes settle { 0% { transform: scale(1.04, .94); } 100% { transform: none; } }
+@keyframes puff { from { transform: scaleX(.4); opacity: 1; } to { transform: scaleX(1.4) translateY(-6px); opacity: 0; } }
+@keyframes jiggle {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-6px) rotate(-2deg); }
+  60% { transform: translateY(0) rotate(1deg); }
 }

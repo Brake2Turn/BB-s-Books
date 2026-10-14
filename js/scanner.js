@@ -17,6 +17,8 @@ export async function startCamera(video) {
   await video.play();
 }
 
+export const cameraLive = () => !!stream;
+
 export function stopCamera(video) {
   stopBarcodeLoop();
   if (stream) stream.getTracks().forEach((t) => t.stop());
@@ -113,6 +115,33 @@ export function startBarcodeLoop(video, { onIsbn, onOther }) {
     setTimeout(tick, 120);
   };
   tick();
+}
+
+/** Find an ISBN barcode in a still photo (used by "use a photo instead"). */
+export async function readBarcodeFromCanvas(canvasEl) {
+  let codes;
+  const native = await getNativeDetector();
+  if (native) {
+    codes = (await native.detect(canvasEl)).map((c) => c.rawValue);
+  } else {
+    await prepareZXing();
+    const data = canvasEl.getContext('2d').getImageData(0, 0, canvasEl.width, canvasEl.height);
+    const results = await window.ZXingWASM.readBarcodes(data, { formats: ['EAN-13'], tryHarder: true });
+    codes = results.filter((r) => r.isValid).map((r) => r.text);
+  }
+  return codes.find(isIsbn13) || null;
+}
+
+/** Load a picked image file onto a canvas, shrunk to a sensible size. */
+export async function fileToCanvas(file, max = 1600) {
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bitmap.width * scale);
+  c.height = Math.round(bitmap.height * scale);
+  c.getContext('2d', { willReadFrequently: true }).drawImage(bitmap, 0, 0, c.width, c.height);
+  bitmap.close();
+  return c;
 }
 
 export function stopBarcodeLoop() {
