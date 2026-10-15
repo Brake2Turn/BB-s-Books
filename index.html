@@ -33,7 +33,6 @@
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
         <h1 class="app-title">BB's <i>Books</i></h1>
-        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
       </header>
       <p class="hero-count"><b data-count></b><span data-count-unit></span></p>
       <div class="stack">
@@ -47,29 +46,11 @@
             <span class="caption rc-caption"></span>
           </span>
         </button>
-        <div class="chips glass-chips" role="group" aria-label="Show">
-          <button class="chip" data-filter="" aria-pressed="true">All</button>
-          <button class="chip" data-filter="reading" aria-pressed="false">Reading</button>
-          <button class="chip" data-filter="want" aria-pressed="false">Want to read</button>
-        </div>
-        <div id="homeShelves" class="shelves"></div>
-        <button class="see-all" data-go="library" hidden></button>
-      </div>
-    </section>
-
-    <!-- Library: every book, searchable -->
-    <section class="screen" data-screen="library" aria-label="Library" hidden>
-      <div class="white-zone" aria-hidden="true"></div>
-      <header class="app-header">
-        <h1 class="app-title">Library</h1>
-        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
-      </header>
-      <div class="stack">
         <label class="field">
           <i data-icon="search"></i>
           <input id="search" type="search" placeholder="Search by title or author" autocomplete="off" aria-label="Search your library">
         </label>
-        <div class="chips tint-chips" role="group" aria-label="Show">
+        <div class="chips glass-chips filter-chips" role="group" aria-label="Show">
           <button class="chip" data-filter="" aria-pressed="true">All</button>
           <button class="chip" data-filter="reading" aria-pressed="false">Reading</button>
           <button class="chip" data-filter="want" aria-pressed="false">Want to read</button>
@@ -97,11 +78,31 @@
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
         <h1 class="app-title">Stats</h1>
-        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
       </header>
       <p class="hero-count"><b id="finishedCount"></b><span id="finishedUnit"></span></p>
       <div class="stack">
         <div id="statsCard" class="glass-card stat-list"></div>
+      </div>
+    </section>
+
+    <!-- Feedback -->
+    <section class="screen" data-screen="feedback" aria-label="Feedback" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">Feedback</h1>
+      </header>
+      <p class="screen-intro">Something not working, or an idea for the app? Write it here and it goes straight to the person who made it.</p>
+      <div class="stack">
+        <form id="feedbackForm" class="glass-card feedback-card" novalidate>
+          <p class="eyebrow"><label for="fbMessage"><i></i>Your message</label></p>
+          <textarea id="fbMessage" name="message" rows="7" placeholder="What would make BB's Books better?" required></textarea>
+          <p class="eyebrow"><label for="fbName"><i></i>Your name</label></p>
+          <input id="fbName" name="name" class="glass-input" type="text" autocomplete="name" placeholder="Optional">
+          <div class="review-actions">
+            <button id="fbSend" class="primary-btn" type="submit">Send feedback</button>
+            <span id="fbStatus" class="caption" aria-live="polite"></span>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -126,9 +127,9 @@
   <!-- TabBar -->
   <nav class="tabbar" aria-label="Main">
     <button class="tab" data-go="home" aria-label="Home" aria-current="page"><i data-icon="home"></i><span class="tab-dot"></span></button>
-    <button class="tab" data-go="library" aria-label="Library"><i data-icon="library"></i><span class="tab-dot"></span></button>
-    <button id="scanBtn" class="scan-btn" aria-label="Scan a book"><i data-icon="scan"></i></button>
     <button class="tab" data-go="stats" aria-label="Stats"><i data-icon="stats"></i><span class="tab-dot"></span></button>
+    <button id="scanBtn" class="scan-btn" aria-label="Scan a book"><i data-icon="scan"></i></button>
+    <button class="tab" data-go="feedback" aria-label="Feedback"><i data-icon="feedback"></i><span class="tab-dot"></span></button>
     <button class="tab" data-go="profile" aria-label="Profile"><i data-icon="profile"></i><span class="tab-dot"></span></button>
   </nav>
 
@@ -202,7 +203,7 @@
     <div class="detail-scroll">
       <div class="white-zone" aria-hidden="true"></div>
       <div class="detail-top">
-        <button class="profile-btn" data-close aria-label="Back to library"><i data-icon="back"></i></button>
+        <button class="round-btn" data-close aria-label="Back to library"><i data-icon="back"></i></button>
       </div>
       <div class="detail-hero"><div class="detail-cover"></div></div>
       <h2 id="dTitle" class="detail-title"></h2>

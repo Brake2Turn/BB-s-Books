@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 

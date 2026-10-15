@@ -11,8 +11,7 @@ const els = {
   screens: $$('.screen'),
   tabs: $$('.tabbar .tab'),
   readingCard: $('#readingCard'),
-  homeShelves: $('#homeShelves'),
-  seeAll: $('.see-all'),
+  filterChips: $('.filter-chips'),
   libraryShelves: $('#libraryShelves'),
   libraryCount: $('#libraryCount'),
   search: $('#search'),
@@ -41,15 +40,21 @@ const els = {
   deleteBtn: $('#deleteBtn'),
   exportBtn: $('#exportBtn'),
   importFile: $('#importFile'),
+  feedbackForm: $('#feedbackForm'),
+  fbMessage: $('#fbMessage'),
+  fbName: $('#fbName'),
+  fbSend: $('#fbSend'),
+  fbStatus: $('#fbStatus'),
   toast: $('#toast'),
 };
 
-const HOME_LIMIT = 6; // two shelves on Home; the rest live in Library
+// Feedback is emailed by FormSubmit (formsubmit.co), which needs no server of our own.
+// The first message triggers a one-time "activate" email to this address.
+const FEEDBACK_TO = 'moorem0013@gmail.com';
 
 let books = [];
 let screen = 'home';
-let homeFilter = '';
-let libraryFilter = '';
+let filter = '';
 let current = null; // book open on the book page
 let draftRating = 0;
 
@@ -182,20 +187,13 @@ function renderReadingCard() {
   els.readingCard.querySelector('.rc-caption').textContent = p.text;
 }
 
+/** Home: the reading card, then every book, searchable and filterable. */
 function renderHome() {
   renderReadingCard();
   // Without the reading card the chips move up onto the white zone, where glass reads grey: use tint there.
-  const chips = $('[data-screen="home"] .chips');
-  chips.classList.toggle('glass-chips', !els.readingCard.hidden);
-  chips.classList.toggle('tint-chips', els.readingCard.hidden);
-  const list = books.filter(matches(homeFilter)).sort(byRecent);
-  const empty = books.length ? 'Nothing here yet' : 'Scan a book to start this shelf';
-  els.homeShelves.replaceChildren(...shelves(list.slice(0, HOME_LIMIT), empty));
-  els.seeAll.hidden = list.length <= HOME_LIMIT;
-  els.seeAll.textContent = `See all ${fmt(list.length)} in your library`;
-}
+  els.filterChips.classList.toggle('glass-chips', !els.readingCard.hidden);
+  els.filterChips.classList.toggle('tint-chips', els.readingCard.hidden);
 
-function renderLibrary() {
   const q = normalise(els.search.value);
   const cmp = {
     added: byRecent,
@@ -204,7 +202,7 @@ function renderLibrary() {
     rating: (a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
   }[els.sort.value];
   const list = books
-    .filter(matches(libraryFilter))
+    .filter(matches(filter))
     .filter((b) => !q || normalise(`${b.title} ${authorLine(b)}`).includes(q))
     .sort(cmp);
   const total = books.length;
@@ -245,7 +243,6 @@ function renderStats() {
 function render() {
   renderCounts();
   if (screen === 'home') renderHome();
-  if (screen === 'library') renderLibrary();
   if (screen === 'stats') renderStats();
 }
 
@@ -285,11 +282,12 @@ async function saveBook(data) {
 
 /** Show Home with the new book in its place but hidden, ready for the cover to land there. */
 function placeIncoming(id) {
-  homeFilter = '';
-  setFilter($('[data-screen="home"] .chips'), '');
+  filter = '';
+  els.search.value = '';
+  setFilter(els.filterChips, '');
   if (screen !== 'home') showScreen('home');
   render();
-  const tile = els.homeShelves.querySelector(`[data-id="${id}"]`);
+  const tile = els.libraryShelves.querySelector(`[data-id="${id}"]`);
   tile.style.visibility = 'hidden';
   tile.scrollIntoView({ block: 'center', behavior: 'instant' });
   return tile;
@@ -438,6 +436,45 @@ async function importLibrary(file) {
   }
 }
 
+// ---------- Feedback ----------
+
+async function sendFeedback(e) {
+  e.preventDefault();
+  const message = els.fbMessage.value.trim();
+  if (!message) {
+    els.fbStatus.textContent = 'Write a message first';
+    els.fbMessage.focus();
+    return;
+  }
+  els.fbSend.disabled = true;
+  els.fbStatus.textContent = 'Sending…';
+  try {
+    const res = await fetch(`https://formsubmit.co/ajax/${FEEDBACK_TO}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        _subject: 'BB’s Books feedback',
+        _template: 'box',
+        _captcha: 'false',
+        name: els.fbName.value.trim() || 'Not given',
+        message,
+        books: String(books.length),
+        sent: new Date().toLocaleString('en-GB'),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || String(data.success) === 'false') throw new Error(data.message || `status ${res.status}`);
+    els.feedbackForm.reset();
+    els.fbStatus.textContent = '';
+    toast('Sent. Thank you');
+  } catch (err) {
+    console.warn('Feedback failed', err);
+    els.fbStatus.textContent = navigator.onLine ? 'That didn’t send. Try again in a moment.' : 'You’re offline. Try again when you have signal.';
+  } finally {
+    els.fbSend.disabled = false;
+  }
+}
+
 // ---------- Wiring ----------
 
 // The same washes sit behind the app and behind the book page.
@@ -454,22 +491,15 @@ document.addEventListener('click', (e) => {
 els.scanBtn.addEventListener('click', () => scan.open());
 els.readingCard.addEventListener('click', () => openDetail(els.readingCard.dataset.id, els.readingCard.querySelector('.cover')));
 
-$('[data-screen="home"] .chips').addEventListener('click', (e) => {
+els.filterChips.addEventListener('click', (e) => {
   const c = e.target.closest('[data-filter]');
   if (!c) return;
-  homeFilter = c.dataset.filter;
-  setFilter(e.currentTarget, homeFilter);
+  filter = c.dataset.filter;
+  setFilter(els.filterChips, filter);
   renderHome();
 });
-$('[data-screen="library"] .chips').addEventListener('click', (e) => {
-  const c = e.target.closest('[data-filter]');
-  if (!c) return;
-  libraryFilter = c.dataset.filter;
-  setFilter(e.currentTarget, libraryFilter);
-  renderLibrary();
-});
-els.search.addEventListener('input', renderLibrary);
-els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); renderLibrary(); });
+els.search.addEventListener('input', renderHome);
+els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); renderHome(); });
 els.sort.value = pref('bbs-sort') || 'added';
 
 els.detail.querySelector('[data-close]').addEventListener('click', () => els.detail.close());
@@ -483,6 +513,8 @@ els.detail.addEventListener('close', () => {
 });
 
 els.exportBtn.addEventListener('click', exportLibrary);
+els.feedbackForm.addEventListener('submit', sendFeedback);
+els.fbMessage.addEventListener('input', () => { els.fbStatus.textContent = ''; });
 els.importFile.addEventListener('change', () => {
   if (els.importFile.files[0]) importLibrary(els.importFile.files[0]);
   els.importFile.value = '';

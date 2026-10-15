@@ -14,9 +14,9 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | **Search by title** | In the scanner, for a book whose barcode won't scan. |
 | **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** sends the cover to its spot on the Home shelf. **Not this one** goes back to the camera. |
 | **Use a photo instead** | Pick a photo of a barcode or cover rather than using the live camera. Handy on a laptop. |
-| **Home** | The library count, the book she's reading now (with progress), and her latest books on glass shelves. |
-| **Library** | Every book on shelves of three, with search, sort and Reading / Want to read / Finished filters. Scanning a book twice won't add a duplicate. |
+| **Home** | The library count, the book she's reading now (with progress), then every book on glass shelves of three, with search, sort and Reading / Want to read / Finished filters. Scanning a book twice won't add a duplicate. |
 | **Stats** | Books finished, pages read, average rating and more. |
+| **Feedback** | A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
 | **Book page** | Large cover, blurb, Want to read / Reading / Finished, page progress, 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
 | **Back up / Restore** | On the Profile tab: saves the whole library, reviews included, to a file, and loads it back in. Use it before switching phones. |
 | **Offline** | Once opened, the app and the covers she's already seen keep working without signal. Looking up new books needs internet. |
@@ -41,6 +41,10 @@ Then on her phone:
 Open it from the home-screen icon and allow camera access when asked.
 
 > **Good to know:** the library lives in the phone's browser storage. Deleting the app or clearing Safari/Chrome website data deletes the library too, so back it up from the Profile tab now and then.
+
+## Feedback emails
+
+Feedback is sent by [FormSubmit](https://formsubmit.co), a free form-to-email service, to the address in `FEEDBACK_TO` at the top of `js/app.js`. The **first** message sends an activation email to that address: click **Activate Form** in it, and every message after that arrives directly. FormSubmit's activation email also gives a random alias you can use in place of the email address, so the address doesn't sit in this public repo.
 
 ## Trying it out
 
@@ -68,7 +72,7 @@ index.html            page structure
 styles.css            design tokens and all styling
 fonts/                Fraunces and Nunito Sans, self-hosted
 design/               snapshot of the style guide (brand book, tokens, component specs)
-js/app.js             Home, Library, Stats and Profile screens, book page, backup
+js/app.js             Home, Stats, Feedback and Profile screens, book page, backup
 js/scan-flow.js       scan screen, result sheet, search, add-to-shelf motion
 js/scanner.js         camera, barcode reading, cover text recognition
 js/lookup.js          Google Books / Open Library lookups
