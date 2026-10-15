@@ -2,6 +2,7 @@
 import * as lookup from './lookup.js';
 import * as scanner from './scanner.js';
 import { coverEl } from './covers.js';
+import { coverPicker } from './cover-picker.js';
 
 const $ = (sel) => document.querySelector(sel);
 const dlg = $('#scanner');
@@ -22,7 +23,7 @@ const els = {
   rMeta: dlg.querySelector('.result-meta'),
   rBlurb: dlg.querySelector('.result-blurb'),
   rNote: dlg.querySelector('.result-note'),
-  coverSwap: dlg.querySelector('.cover-swap'),
+  picker: dlg.querySelector('#resultSheet .cover-picker'),
   primary: dlg.querySelector('[data-choice="primary"]'),
   secondary: dlg.querySelector('[data-choice="secondary"]'),
   list: $('#listSheet'),
@@ -45,7 +46,9 @@ let mode = 'barcode';
 let scanMode = 'barcode'; // the mode to return to after taking a cover photo
 let busy = false;
 let onPhoto = null; // set while taking a photo for a cover
-let found = null;   // { book, photo, dup, coverReady }
+let found = null;   // { book, photo, usingPhoto, picked, dup, coverReady, picker }
+let session = 0;    // bumped on every open and close, so late results from a closed scanner are dropped
+let adding = false; // true while a book is being added and celebrated
 let dismissed = { isbn: '', until: 0 }; // a barcode she just said no to, while it's still in view
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -94,22 +97,22 @@ function openSheet(sheet) {
 
 function closeSheets() { openSheet(null); }
 
-let listPhoto = { photo: '', photoRatio: '' }; // a cover photo carried through an edited search
+let listPhoto = ''; // a cover photo carried through an edited search
 
-function showList({ title, sub = '', search = false, query = '', items = [], photo = '', photoRatio = '' }) {
-  listPhoto = { photo, photoRatio };
+function showList({ title, sub = '', search = false, query = '', items = [], photo = '' }) {
+  listPhoto = photo;
   els.searchInput.value = query;
   scanner.stopBarcodeLoop();
   els.listTitle.textContent = title;
   els.listSub.textContent = sub;
   els.searchForm.hidden = !search;
-  renderList(items, photo, photoRatio);
+  renderList(items, photo);
   openSheet(els.list);
   // Focus after the sheet has risen, without letting the browser scroll the camera view.
   if (search && !query) setTimeout(() => { els.searchInput.focus({ preventScroll: true }); dlg.scrollTop = 0; }, 340);
 }
 
-function renderList(items, photo = '', photoRatio = '') {
+function renderList(items, photo = '') {
   els.resultList.replaceChildren(...items.map((b) => {
     const li = document.createElement('li');
     const btn = document.createElement('button');
@@ -124,20 +127,23 @@ function renderList(items, photo = '', photoRatio = '') {
     btn.append(text);
     btn.addEventListener('click', async () => {
       btn.disabled = true;
-      showResult(await lookup.fillBlurb(b), { photo, photoRatio });
+      const s = session;
+      const full = await lookup.fillBlurb(b);
+      if (s === session) showResult(full, { photo });
     });
     li.append(btn);
     return li;
   }));
 }
 
-/** Show a found book in the result sheet. The cover is revealed once the right edition's picture loads. */
-function showResult(book, { photo = '', photoRatio = '' } = {}) {
+/** Show a found book in the result sheet, with the possible covers to choose from. */
+function showResult(book, { photo = '' } = {}) {
   scanner.stopBarcodeLoop();
   setStatus('');
   const dup = ctx.findDuplicate(book);
+  if (found && found.picker) found.picker.stop();
   // From a cover photo, her own copy is the default picture: it's exactly her edition.
-  found = { book: { ...book }, photo, photoRatio, dup, usingPhoto: !!photo };
+  found = { book: { ...book }, photo, dup, usingPhoto: !!photo, picked: false };
 
   els.rTitle.textContent = book.title;
   els.rAuthor.textContent = authorLine(book) || 'Author unknown';
@@ -148,10 +154,10 @@ function showResult(book, { photo = '', photoRatio = '' } = {}) {
   els.primary.textContent = dup ? 'Open book' : 'Add to library';
   els.secondary.textContent = dup ? 'Scan another' : 'Not this one';
   els.primary.disabled = false;
-  updateCoverSwap();
+  els.secondary.disabled = false;
 
   // Start with her photo or a typographic stand-in, then reveal the published cover.
-  setResultCover(photo ? { ...book, cover: photo, coverRatio: photoRatio } : { ...book, cover: '' }, false);
+  setResultCover(photo ? { ...book, cover: photo } : { ...book, cover: '' }, false);
   openSheet(els.result);
   if (!reduced()) {
     els.rCover.animate([
@@ -161,14 +167,28 @@ function showResult(book, { photo = '', photoRatio = '' } = {}) {
   }
 
   const ticket = found;
-  found.coverReady = lookup.resolveCover(book).then((withCover) => {
-    if (found !== ticket) return;
-    found.book.cover = withCover.cover;
-    found.book.coverRatio = withCover.coverRatio;
-    if (!found.usingPhoto) setResultCover(found.book, true);
-    if (!withCover.cover && !photo) {
+  els.picker.hidden = !!dup;
+  if (!dup) {
+    found.picker = coverPicker(els.picker, book, {
+      selected: () => (ticket.usingPhoto ? ticket.photo : ticket.book.cover),
+      photo: () => ticket.photo,
+      onPick: (url) => {
+        ticket.picked = true;
+        ticket.usingPhoto = url === ticket.photo;
+        if (!ticket.usingPhoto) ticket.book.cover = url;
+        setResultCover({ ...ticket.book, cover: url }, true);
+      },
+      onTakePhoto: () => takeCoverPhoto(ticket),
+    });
+  }
+  found.coverReady = lookup.resolveCover(book).then((cover) => {
+    if (found !== ticket || ticket.picked) return;
+    ticket.book.cover = cover;
+    if (!ticket.usingPhoto) setResultCover(ticket.book, true);
+    if (ticket.picker) ticket.picker.refresh();
+    if (!cover && !photo && !dup) {
       els.rNote.hidden = false;
-      els.rNote.textContent = dup ? els.rNote.textContent : 'We couldn’t find a picture of this edition. You can add a photo of your copy.';
+      els.rNote.textContent = 'We couldn’t find a picture of this edition. Pick another cover below, or take a photo of yours.';
     }
   });
 }
@@ -181,44 +201,34 @@ function setResultCover(book, reveal) {
     els.rCover.replaceChildren(el);
     return;
   }
-  // Reveal: the real cover fades in over the stand-in, then takes its place.
+  // Reveal: the new cover fades in over the old one, then takes its place.
   el.classList.add('over');
   els.rCover.append(el);
-  const settle = () => setTimeout(() => { previous.remove(); el.classList.remove('over'); }, 260);
+  const settle = () => setTimeout(() => {
+    [...els.rCover.children].forEach((c) => { if (c !== el) c.remove(); });
+    el.classList.remove('over');
+  }, 260);
   img.addEventListener('load', settle, { once: true });
   img.addEventListener('error', settle, { once: true });
 }
 
-function updateCoverSwap() {
-  const span = els.coverSwap.querySelector('span');
-  if (found.dup) { els.coverSwap.hidden = true; return; }
-  els.coverSwap.hidden = false;
-  if (found.photo) span.textContent = found.usingPhoto ? 'Use the published cover' : 'Use my photo as the cover';
-  else span.textContent = 'Not your edition’s cover? Take a photo of yours';
-}
-
-els.coverSwap.addEventListener('click', () => {
-  if (found.photo) {
-    found.usingPhoto = !found.usingPhoto;
-    setResultCover(found.usingPhoto ? { ...found.book, cover: found.photo, coverRatio: found.photoRatio || '' } : found.book, true);
-    updateCoverSwap();
-    return;
-  }
-  // Take a photo of her copy, then come back to this sheet.
+/** Take a photo of her copy for this book, then come back to the result sheet. */
+function takeCoverPhoto(ticket) {
   closeSheets();
-  onPhoto = (dataUrl, ratio) => {
+  onPhoto = (dataUrl) => {
     onPhoto = null;
-    found.photo = dataUrl;
-    found.photoRatio = ratio;
-    found.usingPhoto = true;
-    setResultCover({ ...found.book, cover: dataUrl, coverRatio: ratio }, true);
-    updateCoverSwap();
+    if (found !== ticket) return;
+    ticket.photo = dataUrl;
+    ticket.usingPhoto = true;
+    ticket.picked = true;
+    setResultCover({ ...ticket.book, cover: dataUrl }, true);
+    if (ticket.picker) ticket.picker.refresh();
     setMode(scanMode);
     scanner.stopBarcodeLoop();
     openSheet(els.result);
   };
   setMode('photo');
-});
+}
 
 els.primary.addEventListener('click', async () => {
   if (!found) return;
@@ -233,7 +243,9 @@ els.primary.addEventListener('click', async () => {
 });
 
 els.secondary.addEventListener('click', () => {
+  if (adding) return;
   if (found && found.book.isbn) dismissed = { isbn: found.book.isbn, until: Date.now() + 2500 };
+  if (found && found.picker) found.picker.stop();
   found = null;
   closeSheets();
   setStatus('');
@@ -253,13 +265,16 @@ async function handleIsbn(isbn) {
   els.frame.classList.add('locked');
   haptic(10);
   setStatus('Looking it up…');
+  const s = session;
   try {
     const book = await lookup.byIsbn(isbn);
+    if (s !== session) return; // the scanner was closed while we looked
     if (!book) throw new Error('We couldn’t find that one. Try the barcode again or search by title.');
     showResult(book);
   } catch (err) {
-    setStatus(err.message);
-    setTimeout(() => { if (dlg.open && mode === 'barcode' && !found) setMode('barcode'); }, 2500);
+    if (s !== session) return;
+    setStatus(err.name === 'AbortError' ? 'The book databases are slow to answer. Try again in a moment.' : err.message);
+    setTimeout(() => { if (s === session && mode === 'barcode' && !found) setMode('barcode'); }, 2500);
   } finally {
     els.frame.classList.remove('locked');
   }
@@ -267,7 +282,7 @@ async function handleIsbn(isbn) {
 
 async function readCover(canvas) {
   const photo = canvas.toDataURL('image/jpeg', 0.82);
-  const photoRatio = `${canvas.width} / ${canvas.height}`;
+  const s = session;
   try {
     setStatus('Reading the cover…');
     const reading = await scanner.readCoverText(canvas, (m) => {
@@ -277,8 +292,10 @@ async function readCover(canvas) {
     if (!reading.query || reading.query.replace(/\W/g, '').length < 3) {
       throw new Error('We couldn’t make out the words. Try again in better light, or search by title.');
     }
+    if (s !== session) return;
     setStatus('Searching…');
     const items = await lookup.searchCover(reading);
+    if (s !== session) return; // closed while searching
     found = null;
     // The words it read stay editable, so a misread is a quick fix rather than a rescan.
     showList({
@@ -288,20 +305,17 @@ async function readCover(canvas) {
       query: reading.query,
       items,
       photo,
-      photoRatio,
     });
     setStatus('');
   } catch (err) {
+    if (s !== session) return;
     setStatus(err.message);
     resumeCamera();
   }
 }
 
-async function takePhoto(canvas) {
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-  const ratio = `${canvas.width} / ${canvas.height}`;
-  const cb = onPhoto;
-  if (cb) cb(dataUrl, ratio);
+function takePhoto(canvas) {
+  if (onPhoto) onPhoto(canvas.toDataURL('image/jpeg', 0.82));
 }
 
 els.shutter.addEventListener('click', async () => {
@@ -311,7 +325,7 @@ els.shutter.addEventListener('click', async () => {
   els.video.pause();
   const canvas = scanner.capturePhoto(els.video, els.frame);
   if (mode === 'photo') {
-    await takePhoto(canvas);
+    takePhoto(canvas);
     els.video.play().catch(() => {});
   } else {
     await readCover(canvas);
@@ -328,7 +342,7 @@ els.photoInput.addEventListener('change', async () => {
   try {
     const canvas = await scanner.fileToCanvas(file);
     if (mode === 'photo') {
-      await takePhoto(canvas);
+      takePhoto(canvas);
     } else if (mode === 'barcode') {
       setStatus('Looking for a barcode…');
       const isbn = await scanner.readBarcodeFromCanvas(canvas);
@@ -359,7 +373,7 @@ els.searchForm.addEventListener('submit', async (e) => {
   els.resultList.replaceChildren(msg);
   try {
     const items = await lookup.search(q, 8);
-    if (items.length) renderList(items, listPhoto.photo, listPhoto.photoRatio);
+    if (items.length) renderList(items, listPhoto);
     else msg.textContent = 'Nothing found. Try fewer words, or just the author’s surname.';
   } catch {
     msg.textContent = 'We couldn’t reach the book databases. Check your connection and try again.';
@@ -372,8 +386,9 @@ dlg.querySelector('.seg').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mode]');
   if (b && !found) { closeSheets(); setStatus(''); setMode(b.dataset.mode); }
 });
-dlg.querySelector('[data-close]').addEventListener('click', () => close());
-dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+// While a book is being added the scanner can't be closed: the add would be left half done.
+dlg.querySelector('[data-close]').addEventListener('click', () => { if (!adding) close(); });
+dlg.addEventListener('cancel', (e) => { e.preventDefault(); if (!adding) close(); });
 
 // ---------- Onto the shelf ----------
 
@@ -508,64 +523,74 @@ async function celebrate(flyer, from, book) {
   setTimeout(() => celebrateText.classList.add('show'), reduced() ? 0 : 520);
   haptic(cheer.milestone ? [30, 60, 30, 60, 120] : [25, 50, 60]);
 
-  // Hold the moment; a tap moves on sooner.
+  // Hold the moment; a tap moves on sooner. The tap listener is removed either way.
+  const taps = new AbortController();
   await Promise.race([
     wait(cheer.milestone ? 3200 : 2400),
-    wait(700).then(() => new Promise((r) => dlg.addEventListener('click', r, { once: true }))),
+    wait(700).then(() => new Promise((r) => dlg.addEventListener('click', r, { once: true, signal: taps.signal }))),
   ]);
+  taps.abort();
   celebrateText.classList.remove('show');
   return centre;
 }
 
 async function addToLibrary() {
-  // Give the cover search a moment to finish so the shelf gets the real picture.
-  await Promise.race([found.coverReady, new Promise((r) => setTimeout(r, 4000))]);
-  const data = { ...found.book };
-  if (found.usingPhoto) {
-    data.cover = found.photo;
-    data.coverRatio = found.photoRatio || '';
+  const f = found; // close() clears `found`; keep our own reference for the whole add
+  adding = true;
+  els.secondary.disabled = true;
+  if (f.picker) f.picker.stop();
+  let flyer = null;
+  try {
+    // Give the cover search a moment to finish so the shelf gets the real picture.
+    await Promise.race([f.coverReady, wait(4000)]);
+    const data = { ...f.book, cover: f.usingPhoto ? f.photo : f.book.cover };
+    const saved = await ctx.saveBook(data);
+
+    const source = els.rCover.querySelector('.cover');
+    const from = source.getBoundingClientRect();
+    // A copy of the cover does the celebrating, then travels to its place on the shelf.
+    flyer = source.cloneNode(true);
+    flyer.classList.add('flying');
+    Object.assign(flyer.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` });
+    dlg.append(flyer);
+    source.style.visibility = 'hidden';
+    closeSheets();
+
+    const centre = await celebrate(flyer, from, saved);
+
+    const tile = ctx.placeIncoming(saved.id);
+    dlg.classList.remove('celebrating');
+    dlg.classList.add('settling');
+    if (tile) {
+      const to = tile.querySelector('.cover').getBoundingClientRect();
+      const sx = to.width / from.width;
+      const sy = to.height / from.height;
+      const dx = to.left - from.left;
+      const dy = to.top - from.top;
+      // Swoop down to the shelf and land with one small give, like a book set down.
+      await move(flyer, [
+        { transform: centre, offset: 0 },
+        { transform: `translate(${dx}px, ${dy + 3}px) scale(${sx * 1.02}, ${sy * 0.97})`, offset: 0.82 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, offset: 1 },
+      ], { duration: 620, easing: 'cubic-bezier(.5,0,.3,1)' });
+      ctx.landed(tile);
+    }
+    haptic(18);
+  } catch (err) {
+    console.warn('Adding the book failed', err);
+    ctx.toast('That didn’t save. Try adding it again.');
+  } finally {
+    adding = false;
+    if (flyer) flyer.remove();
+    close();
   }
-  const saved = await ctx.saveBook(data);
-
-  const source = els.rCover.querySelector('.cover');
-  const from = source.getBoundingClientRect();
-
-  // A copy of the cover does the celebrating, then travels to its place on the shelf.
-  const flyer = source.cloneNode(true);
-  flyer.classList.add('flying');
-  Object.assign(flyer.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` });
-  dlg.append(flyer);
-  source.style.visibility = 'hidden';
-  closeSheets();
-
-  const centre = await celebrate(flyer, from, saved);
-
-  const tile = ctx.placeIncoming(saved.id);
-  const to = tile.querySelector('.cover').getBoundingClientRect();
-  dlg.classList.remove('celebrating');
-  dlg.classList.add('settling');
-  const sx = to.width / from.width;
-  const sy = to.height / from.height;
-  const dx = to.left - from.left;
-  const dy = to.top - from.top;
-  // Swoop down to the shelf and land with one small give, like a book set down.
-  await move(flyer, [
-    { transform: centre, offset: 0 },
-    { transform: `translate(${dx}px, ${dy + 3}px) scale(${sx * 1.02}, ${sy * 0.97})`, offset: 0.82 },
-    { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, offset: 1 },
-  ], { duration: 620, easing: 'cubic-bezier(.5,0,.3,1)' });
-
-  ctx.landed(tile);
-  flyer.remove();
-  haptic(18);
-  close();
 }
 
 // ---------- Open / close ----------
 
 /** Open the scanner. Pass onPhoto to just take a photo of a cover (e.g. replacing one). */
 export async function open(opts = {}) {
-  ctx = ctx || opts.ctx;
+  const s = ++session;
   found = null;
   onPhoto = opts.onPhoto || null;
   closeSheets();
@@ -574,8 +599,10 @@ export async function open(opts = {}) {
   dlg.showModal();
   try {
     await scanner.startCamera(els.video);
+    if (s !== session) { scanner.stopCamera(els.video); return; } // closed before the camera came on
     setMode(onPhoto ? 'photo' : scanMode);
   } catch (err) {
+    if (s !== session) return;
     setMode(onPhoto ? 'photo' : scanMode);
     setStatus(err.name === 'NotAllowedError'
       ? 'Camera access is off for this site. Turn it on in your browser settings, or use a photo instead.'
@@ -584,7 +611,9 @@ export async function open(opts = {}) {
 }
 
 export function close() {
+  session++;
   scanner.stopCamera(els.video);
+  if (found && found.picker) found.picker.stop();
   found = null;
   onPhoto = null;
   busy = false;

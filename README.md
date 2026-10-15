@@ -9,7 +9,7 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | | |
 |---|---|
 | **Barcode scan** | Point the camera at the ISBN barcode on the back. The book's details and blurb come from Google Books and Open Library. |
-| **The right cover** | Covers are looked up by the exact ISBN on her copy (Amazon's image store, then Open Library, then Google), so the picture matches her edition. If none is found, or it's the wrong one, she can tap **"Take a photo of yours"** and her own copy becomes the cover. Any book's cover can be replaced later from its page. |
+| **The right cover** | Covers are looked up by the exact ISBN on her copy (Amazon's image store, then Open Library, then Google), so the picture matches her edition. Below the found book is a row of every cover it might have: her edition first, then other editions from Open Library and Google, then **Take a photo** for her own copy. She taps one to use it. **Change cover** on a book's page brings the same choices back later. |
 | **Cover scan** | Take a photo of the front cover. The app cleans up the photo (contrast, light-on-dark lettering), reads the words on it on the phone itself, and ignores cover clutter like "Sunday Times bestseller". It then searches several ways and puts the best match first. The words it read stay editable in case it slipped. Her photo is used as the cover by default, since it's exactly her copy. |
 | **Search by title** | In the scanner, for a book whose barcode won't scan. |
 | **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** starts a celebration: the cover springs up, confetti flies, and the book's number is called out, with special lines for the first book and milestones. Then the cover lands in its spot on the shelf. **Not this one** goes back to the camera. |
@@ -79,6 +79,7 @@ js/scanner.js         camera, barcode reading, cover text recognition
 js/lookup.js          Google Books / Open Library lookups
 js/covers.js          edition cover search, cover tiles and placeholders
 js/genres.js          turns database categories into a short genre list
+js/cover-picker.js    the row of possible covers (result sheet and book page)
 js/icons.js           line icons
 js/demo.js            sample shelf for ?demo
 js/db.js              on-device storage (IndexedDB)

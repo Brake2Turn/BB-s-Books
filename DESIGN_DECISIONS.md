@@ -31,6 +31,11 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 - **Rating stars:** cobalt fill when chosen (a mark, not text), `--ink-2` outline otherwise, 44px targets.
 - **Page inputs, review and feedback boxes:** the selected glass chip's fill, border and highlight. The review box uses a 16px radius: a pill can't hold several lines, and 24px looked too round at that size.
 - **Toast:** a selected glass chip ("Added to your library").
+- **Cover picker:** a sideways row of BookCover tiles at 56px wide (2:3, `--radius-cover`, `--shadow-cover-sm`).
+  - The chosen tile gets the guide's focus treatment, a 2px cobalt ring with a 3px offset.
+  - The last tile, "Take a photo", is a tint tile with a cobalt camera icon.
+  - While covers are found, placeholder tiles pulse in the cover-loading tone.
+  - It sits under the found book on the result sheet. On the book page it opens in a glass card from "Change cover".
 - **Reading progress:** the guide's ProgressBar needs pages read, so the book page has "Page __ of __" inputs while a book is marked Reading. The reading card shows the most recently started book.
 
 ## Genres

@@ -5,6 +5,7 @@ import { icon, hydrateIcons } from './icons.js';
 import { sampleBooks } from './demo.js';
 import { GENRES } from './genres.js';
 import { genreFor } from './lookup.js';
+import { coverPicker } from './cover-picker.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -41,7 +42,9 @@ const els = {
   dReview: $('#dReview'),
   saveBtn: $('#saveBtn'),
   saved: $('#saved'),
-  recoverBtn: $('#recoverBtn'),
+  changeCoverBtn: $('#changeCoverBtn'),
+  coverCard: $('#coverCard'),
+  coverPickerHost: $('#coverCard .cover-picker'),
   deleteBtn: $('#deleteBtn'),
   exportBtn: $('#exportBtn'),
   importFile: $('#importFile'),
@@ -63,6 +66,7 @@ let filter = '';
 let genre = ''; // '' = all genres, '-' = books with no genre yet
 let current = null; // book open on the book page
 let draftRating = 0;
+let picker = null; // cover picker on the book page, while open
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const authorLine = (b) => (b.authors || []).join(', ');
@@ -400,6 +404,7 @@ function openDetail(id, originEl) {
   renderStatus();
   els.dReview.value = c.review || '';
   els.saved.textContent = c.reviewedAt && c.review ? `Saved ${new Date(c.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : '';
+  closeCoverPicker();
   els.detail.showModal();
   els.detail.querySelector('.detail-scroll').scrollTop = 0;
 
@@ -461,19 +466,51 @@ async function deleteCurrent() {
   toast('Removed from your library');
 }
 
-function recoverCover() {
+// ---------- Changing a cover ----------
+
+function closeCoverPicker() {
+  if (picker) picker.stop();
+  picker = null;
+  els.coverCard.hidden = true;
+  els.changeCoverBtn.hidden = false;
+}
+
+/** Open the cover picker on the book page: other editions' covers, or a photo of her copy. */
+function openCoverPicker() {
   if (!current) return;
   const book = current;
+  els.coverCard.hidden = false;
+  els.changeCoverBtn.hidden = true;
+  els.coverCard.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
+  picker = coverPicker(els.coverPickerHost, book, {
+    selected: () => (current ? current.cover : ''),
+    photo: () => '',
+    onPick: async (url) => {
+      current = await saveRecord({ ...current, cover: url });
+      els.dCover.replaceChildren(coverEl(current));
+      render();
+      toast('Cover updated');
+    },
+    onTakePhoto: () => photographCover(book.id),
+  });
+}
+
+/** Use a photo of her own copy as the cover. */
+function photographCover(id) {
   els.detail.close();
+  let done = false;
   scan.open({
     onPhoto: async (dataUrl) => {
+      done = true;
       scan.close();
-      await saveRecord({ ...books.find((b) => b.id === book.id), cover: dataUrl });
+      await saveRecord({ ...books.find((b) => b.id === id), cover: dataUrl });
       render();
-      openDetail(book.id);
+      openDetail(id);
       toast('Cover updated');
     },
   });
+  // If she backs out of the camera, bring her back to the book.
+  $('#scanner').addEventListener('close', () => { if (!done) openDetail(id); }, { once: true });
 }
 
 // ---------- Backup ----------
@@ -572,9 +609,10 @@ els.genreFilter.addEventListener('change', () => { genre = els.genreFilter.value
 els.detail.querySelector('[data-close]').addEventListener('click', () => els.detail.close());
 els.saveBtn.addEventListener('click', () => saveDetail(false));
 els.deleteBtn.addEventListener('click', deleteCurrent);
-els.recoverBtn.addEventListener('click', recoverCover);
+els.changeCoverBtn.addEventListener('click', openCoverPicker);
 els.dReview.addEventListener('input', () => { els.saved.textContent = 'Not saved yet'; });
 els.detail.addEventListener('close', () => {
+  closeCoverPicker();
   // Never lose a half-written review because she closed the book without tapping Save.
   if (current && els.dReview.value.trim() !== (current.review || '')) saveDetail(true).then(() => toast('Review saved'));
 });

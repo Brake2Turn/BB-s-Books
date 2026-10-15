@@ -191,7 +191,7 @@
       </div>
       <p class="result-blurb"></p>
       <p class="result-note" hidden></p>
-      <button class="text-btn cover-swap" hidden><i data-icon="camera"></i><span></span></button>
+      <div class="cover-picker" aria-label="Choose a cover"></div>
       <div class="sheet-actions">
         <button class="primary-btn" data-choice="primary">Add to library</button>
         <button class="text-btn" data-choice="secondary">Not this one</button>
@@ -250,6 +250,11 @@
           </div>
         </section>
 
+        <section id="coverCard" class="glass-card" hidden>
+          <p class="eyebrow"><i></i>Choose a cover</p>
+          <div class="cover-picker"></div>
+        </section>
+
         <section class="glass-card">
           <p class="eyebrow"><i></i>Blurb</p>
           <p id="dBlurb" class="body-text blurb"></p>
@@ -270,7 +275,7 @@
         </section>
 
         <div class="quiet-actions">
-          <button id="recoverBtn" class="text-btn"><i data-icon="camera"></i>Use a photo of my copy as the cover</button>
+          <button id="changeCoverBtn" class="text-btn"><i data-icon="image"></i>Change cover</button>
           <button id="deleteBtn" class="text-btn"><i data-icon="trash"></i>Remove from library</button>
         </div>
       </div>

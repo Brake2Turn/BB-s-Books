@@ -1,14 +1,21 @@
 // Book metadata lookups: Google Books first (best blurbs), Open Library as backup.
-import { editionCoverUrls, firstWorking } from './covers.js';
+import { editionCoverUrls, firstWorking, probe, isbn13to10 } from './covers.js';
 import { pickGenre } from './genres.js';
 
 const GOOGLE = 'https://www.googleapis.com/books/v1/volumes';
 const OL = 'https://openlibrary.org';
 
-async function getJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} from ${new URL(url).host}`);
-  return res.json();
+/** Fetch JSON, giving up after `ms` so a stalled connection never leaves a lookup spinning. */
+async function getJSON(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status} from ${new URL(url).host}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function stripHtml(html) {
@@ -24,6 +31,8 @@ function googleCovers(links) {
   const clean = url.replace(/^http:/, 'https:').replace('&edge=curl', '');
   return [`${clean}&fife=w800`, clean];
 }
+
+const olCover = (id, size) => `https://covers.openlibrary.org/b/id/${id}-${size}.jpg`;
 
 function fromGoogle(item) {
   const v = item.volumeInfo || {};
@@ -98,7 +107,7 @@ export async function byIsbn(isbn) {
   const google = g.status === 'fulfilled' ? g.value : null;
   const ol = o.status === 'fulfilled' ? o.value : null;
   if (!google && !ol) {
-    if (g.status === 'rejected' && o.status === 'rejected') throw new Error('Could not reach the book databases. Are you online?');
+    if (g.status === 'rejected' && o.status === 'rejected') throw new Error('We couldn’t reach the book databases. Check your connection and try again.');
     return null;
   }
   const book = merge(google, ol);
@@ -126,8 +135,8 @@ async function olSearch(q, limit) {
     title: doc.title,
     authors: doc.author_name || [],
     blurb: '',
-    cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
-    coverCandidates: doc.cover_i ? [`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`] : [],
+    cover: doc.cover_i ? olCover(doc.cover_i, 'M') : '',
+    coverCandidates: doc.cover_i ? [olCover(doc.cover_i, 'L')] : [],
     isbn: (doc.isbn || []).find((i) => i.length === 13) || (doc.isbn || [])[0] || '',
     publisher: (doc.publisher || [])[0] || '',
     published: doc.first_publish_year ? String(doc.first_publish_year) : '',
@@ -240,12 +249,58 @@ export async function fillBlurb(book) {
   return book;
 }
 
-/**
- * Settle on the picture for a book: the first candidate that actually loads.
- * Sets cover/coverRatio, or clears cover if nothing works.
- */
+/** Settle on the picture for a book: the first candidate that actually loads ('' if none). */
 export async function resolveCover(book) {
-  const urls = [...editionCoverUrls(book.isbn), ...(book.coverCandidates || []), book.cover];
-  const hit = await firstWorking(urls);
-  return { ...book, cover: hit ? hit.url : '', coverRatio: hit ? `${hit.w} / ${hit.h}` : '' };
+  const hit = await firstWorking([...editionCoverUrls(book.isbn), ...(book.coverCandidates || []), book.cover]);
+  return hit ? hit.url : '';
+}
+
+// ---------- Cover options (the cover picker) ----------
+
+/**
+ * Every cover this book might have: her exact edition first, then other editions.
+ * Each option is { thumb, full }: the small image shown in the picker and the large one
+ * saved when it's chosen. Only options whose thumbnail actually loads and is shaped like
+ * a book cover are returned, best first, at most `limit`.
+ */
+export async function coverOptions(book, limit = 12) {
+  const groups = []; // [{ thumb, full }], in priority order
+  const add = (thumb, full) => { if (thumb && !groups.some((g) => g.thumb === thumb || g.full === full)) groups.push({ thumb, full: full || thumb }); };
+
+  // 1. The exact edition, by ISBN.
+  if (book.isbn) {
+    const isbn10 = isbn13to10(book.isbn);
+    if (isbn10) add(`https://images-na.ssl-images-amazon.com/images/P/${isbn10}.01.MZZZZZZZ.jpg`, `https://images-na.ssl-images-amazon.com/images/P/${isbn10}.01.LZZZZZZZ.jpg`);
+    add(`https://covers.openlibrary.org/b/isbn/${book.isbn}-M.jpg?default=false`, `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`);
+  }
+  const [fife, plain] = (book.coverCandidates || []).filter((u) => u.includes('books.google'));
+  if (plain) add(plain, fife);
+
+  // 2. Other editions: Open Library's edition list for the work, and other Google volumes.
+  const title = (book.title || '').split(':')[0];
+  const author = (book.authors || [])[0] || '';
+  const [ol, google] = await Promise.allSettled([
+    (async () => {
+      let workKey = book.workKey;
+      if (!workKey) {
+        const found = await olSearch(`${title} ${author}`, 1);
+        workKey = found[0] && found[0].workKey;
+      }
+      if (!workKey) return [];
+      const d = await getJSON(`${OL}${workKey}/editions.json?limit=60`);
+      return [...new Set((d.entries || []).flatMap((e) => (e.covers || []).filter((id) => id > 0)))].slice(0, 16);
+    })(),
+    getJSON(`${GOOGLE}?q=${encodeURIComponent(`intitle:${title}${author ? ` inauthor:${author}` : ''}`)}&maxResults=20&printType=books`)
+      .then((d) => (d.items || []).map((i) => googleCovers((i.volumeInfo || {}).imageLinks)).filter((c) => c.length)),
+  ]);
+  if (ol.status === 'fulfilled') ol.value.forEach((id) => add(olCover(id, 'M'), olCover(id, 'L')));
+  if (google.status === 'fulfilled') google.value.slice(0, 12).forEach(([big, small]) => add(small, big));
+
+  // Keep the ones that load and look like covers (portrait, not a sliver or a square logo).
+  const checked = await Promise.all(groups.slice(0, 32).map(async (g) => {
+    const hit = await probe(g.thumb, 8000);
+    const ratio = hit && hit.w / hit.h;
+    return hit && ratio > 0.45 && ratio < 0.9 ? g : null;
+  }));
+  return checked.filter(Boolean).slice(0, limit);
 }

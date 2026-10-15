@@ -9,6 +9,7 @@ export async function startCamera(video) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     throw new Error('This browser cannot use the camera. Try Safari or Chrome, opened from an https:// address.');
   }
+  if (stream) stopCamera(video); // never leave an earlier camera running
   stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },

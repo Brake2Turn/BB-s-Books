@@ -1,7 +1,8 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
+const MAX_COVERS = 400; // oldest covers are dropped beyond this, so the cache can't grow forever
 
 const SHELL_FILES = [
   './',
@@ -17,6 +18,7 @@ const SHELL_FILES = [
   'js/icons.js',
   'js/demo.js',
   'js/genres.js',
+  'js/cover-picker.js',
   'fonts/fraunces-latin-full-normal.woff2',
   'fonts/fraunces-latin-full-italic.woff2',
   'fonts/nunito-sans-latin-wght-normal.woff2',
@@ -42,37 +44,47 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/** Keep the cover cache to MAX_COVERS entries, dropping the oldest first. */
+async function trimCovers(cache) {
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - MAX_COVERS)).map((k) => cache.delete(k)));
+}
+
+/** Store a copy of a good response (never error pages). */
+function keep(cacheName, req, res) {
+  if (res.ok || res.type === 'opaque') {
+    const copy = res.clone();
+    caches.open(cacheName).then((c) => c.put(req, copy)).catch(() => {});
+  }
+  return res;
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
   if (url.origin === location.origin) {
-    // Network first for the app itself so updates arrive; cache when offline.
+    // The large text-recognition files: cache first, fetched the first time a cover is scanned.
     if (LAZY.test(url.pathname)) {
-      event.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(SHELL).then((c) => c.put(req, copy));
-        return res;
-      })));
+      event.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => keep(SHELL, req, res))));
       return;
     }
+    // Everything else in the app: network first so updates arrive, the cache when offline.
     event.respondWith(
-      fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(SHELL).then((c) => c.put(req, copy));
-        return res;
-      }).catch(() => caches.match(req, { ignoreSearch: true })),
+      fetch(req)
+        .then((res) => keep(SHELL, req, res))
+        .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || Response.error())),
     );
     return;
   }
 
-  // Cover images: cache first so the shelves still look full offline. Colour sampling
-  // makes CORS requests for the same URLs; those skip the cache so the two never mix.
+  // Cover images: cache first so the shelves still look full offline. Only plain image
+  // loads (no-cors) are cached; requests that read the image's data would need CORS copies.
   if (req.destination === 'image' && req.mode === 'no-cors') {
     event.respondWith(
       caches.open(COVERS).then((c) => c.match(req).then((hit) => hit || fetch(req).then((res) => {
-        c.put(req, res.clone());
+        c.put(req, res.clone()).then(() => trimCovers(c)).catch(() => {});
         return res;
       }))),
     );
