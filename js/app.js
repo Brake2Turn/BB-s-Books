@@ -3,6 +3,8 @@ import * as scan from './scan-flow.js';
 import { coverEl } from './covers.js';
 import { icon, hydrateIcons } from './icons.js';
 import { sampleBooks } from './demo.js';
+import { GENRES } from './genres.js';
+import { genreFor } from './lookup.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -16,6 +18,9 @@ const els = {
   libraryCount: $('#libraryCount'),
   search: $('#search'),
   sort: $('#sort'),
+  genreFilter: $('#genreFilter'),
+  genreWrap: $('#genreWrap'),
+  dGenre: $('#dGenre'),
   finishedCount: $('#finishedCount'),
   finishedUnit: $('#finishedUnit'),
   statsCard: $('#statsCard'),
@@ -55,6 +60,7 @@ const FEEDBACK_TO = 'moorem0013@gmail.com';
 let books = [];
 let screen = 'home';
 let filter = '';
+let genre = ''; // '' = all genres, '-' = books with no genre yet
 let current = null; // book open on the book page
 let draftRating = 0;
 
@@ -187,12 +193,23 @@ function renderReadingCard() {
   els.readingCard.querySelector('.rc-caption').textContent = p.text;
 }
 
+/** The genre menu lists only genres on her shelves, in the standard order. */
+function renderGenreFilter() {
+  const present = GENRES.filter((g) => books.some((b) => b.genre === g));
+  const unsorted = books.some((b) => !b.genre);
+  els.genreWrap.hidden = !present.length;
+  if (genre && genre !== '-' && !present.includes(genre)) genre = '';
+  const options = [['', 'All genres'], ...present.map((g) => [g, g]), ...(unsorted && present.length ? [['-', 'No genre yet']] : [])];
+  els.genreFilter.replaceChildren(...options.map(([value, label]) => new Option(label, value, false, value === genre)));
+}
+
 /** Home: the reading card, then every book, searchable and filterable. */
 function renderHome() {
   renderReadingCard();
   // Without the reading card the chips move up onto the white zone, where glass reads grey: use tint there.
   els.filterChips.classList.toggle('glass-chips', !els.readingCard.hidden);
   els.filterChips.classList.toggle('tint-chips', els.readingCard.hidden);
+  renderGenreFilter();
 
   const q = normalise(els.search.value);
   const cmp = {
@@ -203,12 +220,21 @@ function renderHome() {
   }[els.sort.value];
   const list = books
     .filter(matches(filter))
+    .filter((b) => !genre || (genre === '-' ? !b.genre : b.genre === genre))
     .filter((b) => !q || normalise(`${b.title} ${authorLine(b)}`).includes(q))
     .sort(cmp);
   const total = books.length;
   els.libraryCount.textContent = list.length === total ? `${fmt(total)} ${plural(total, 'book')}` : `${fmt(list.length)} of ${fmt(total)} books`;
   const empty = !total ? 'Scan a book to start this shelf' : q ? 'Nothing matches that search' : 'Nothing here yet';
   els.libraryShelves.replaceChildren(...shelves(list, empty));
+}
+
+/** Most common genre among finished books (or all books, if none are finished yet). */
+function favouriteGenre() {
+  const pool = books.filter((b) => b.status === 'read' && b.genre);
+  const counts = {};
+  (pool.length ? pool : books.filter((b) => b.genre)).forEach((b) => { counts[b.genre] = (counts[b.genre] || 0) + 1; });
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 }
 
 function renderStats() {
@@ -227,6 +253,7 @@ function renderStats() {
     ['Pages read', fmt(pagesRead)],
     ['Average rating', avg ? `${avg} of 5` : 'No ratings yet'],
     ['Added this month', fmt(books.filter((b) => b.addedAt >= monthStart).length)],
+    ['Favourite genre', favouriteGenre() || 'Not enough books yet'],
   ];
   els.statsCard.replaceChildren(...rows.map(([label, value]) => {
     const row = document.createElement('div');
@@ -257,6 +284,27 @@ async function load() {
     books = await db.getAll();
   }
   render();
+  fillMissingGenres();
+}
+
+/**
+ * Books added before genres existed have no genre field. Look each up once, gently
+ * (one at a time, with a pause), and remember the answer even when it's "none found".
+ */
+async function fillMissingGenres() {
+  if (fillMissingGenres.running) return;
+  fillMissingGenres.running = true;
+  for (const b of books.filter((x) => x.genre === undefined)) {
+    if (!navigator.onLine) break;
+    try {
+      const g = await genreFor(b);
+      const latest = books.find((x) => x.id === b.id);
+      if (latest && latest.genre === undefined) await saveRecord({ ...latest, genre: g });
+      render();
+    } catch { /* offline or rate-limited: try again next time the app opens */ }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  fillMissingGenres.running = false;
 }
 
 // ---------- Hooks for the scan screen ----------
@@ -272,6 +320,7 @@ async function saveBook(data) {
     publisher: data.publisher || '',
     published: data.published || '',
     pages: data.pages || null,
+    genre: data.genre || '',
     page: 0,
     status: '',
     rating: 0,
@@ -283,6 +332,7 @@ async function saveBook(data) {
 /** Show Home with the new book in its place but hidden, ready for the cover to land there. */
 function placeIncoming(id) {
   filter = '';
+  genre = '';
   els.search.value = '';
   setFilter(els.filterChips, '');
   if (screen !== 'home') showScreen('home');
@@ -295,6 +345,11 @@ function placeIncoming(id) {
 
 function landed(tile) {
   tile.style.visibility = '';
+  if (reduced()) return;
+  // The ledge takes the weight: a small dip under the new book.
+  const ledge = tile.closest('.shelf-row')?.querySelector('.ledge');
+  if (ledge) ledge.animate([{ transform: 'none' }, { transform: 'translateY(2px) scaleY(.85)' }, { transform: 'none' }], { duration: 320, easing: 'ease-out' });
+  tile.animate([{ transform: 'translateY(-3px)' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.3,1.6,.5,1)' });
 }
 
 // ---------- Book page ----------
@@ -335,6 +390,9 @@ function openDetail(id, originEl) {
   els.dTitle.textContent = c.title;
   els.dAuthor.textContent = authorLine(c) || 'Author unknown';
   els.dMeta.textContent = [c.published && c.published.slice(0, 4), c.pages && `${fmt(c.pages)} pages`, c.isbn && `ISBN ${c.isbn}`].filter(Boolean).join(' · ');
+  els.dGenre.replaceChildren(new Option('Add a genre', ''), ...GENRES.map((g) => new Option(g, g)));
+  els.dGenre.value = c.genre || '';
+  els.dGenre.classList.toggle('unset', !c.genre);
   els.dBlurb.textContent = c.blurb || 'No blurb came with this edition.';
   els.dBlurb.classList.toggle('empty', !c.blurb);
   draftRating = c.rating || 0;
@@ -371,6 +429,13 @@ els.status.addEventListener('click', async (e) => {
   const status = current.status === b.dataset.status ? '' : b.dataset.status;
   current = await saveRecord({ ...current, status, readingAt: status === 'reading' ? Date.now() : current.readingAt });
   renderStatus();
+  render();
+});
+
+els.dGenre.addEventListener('change', async () => {
+  if (!current) return;
+  current = await saveRecord({ ...current, genre: els.dGenre.value });
+  els.dGenre.classList.toggle('unset', !current.genre);
   render();
 });
 
@@ -482,7 +547,8 @@ const washes = $('#washTemplate').content;
 document.body.prepend(washes.cloneNode(true));
 els.detail.prepend(washes.cloneNode(true));
 hydrateIcons();
-scan.init({ findDuplicate, saveBook, placeIncoming, landed, openDetail, toast });
+scan.init({ findDuplicate, saveBook, placeIncoming, landed, openDetail, toast, count: () => books.length });
+$('#scanner .celebrate').prepend(washes.cloneNode(true));
 
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
@@ -501,6 +567,7 @@ els.filterChips.addEventListener('click', (e) => {
 els.search.addEventListener('input', renderHome);
 els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); renderHome(); });
 els.sort.value = pref('bbs-sort') || 'added';
+els.genreFilter.addEventListener('change', () => { genre = els.genreFilter.value; renderHome(); });
 
 els.detail.querySelector('[data-close]').addEventListener('click', () => els.detail.close());
 els.saveBtn.addEventListener('click', () => saveDetail(false));

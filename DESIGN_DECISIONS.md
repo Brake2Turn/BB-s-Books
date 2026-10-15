@@ -33,6 +33,13 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 - **Toast:** a selected glass chip ("Added to your library").
 - **Reading progress:** the guide's ProgressBar needs pages read, so the book page has "Page __ of __" inputs while a book is marked Reading. The reading card shows the most recently started book.
 
+## Genres
+
+- **Fixed list:** the databases' categories and subjects are mapped onto 18 reader-friendly genres (`js/genres.js`). Rules go from most specific (Children's, Young adult, Graphic novels) to broadest (Literary fiction, then Non-fiction).
+- **Filter:** a quiet "All genres" menu beside sort, listing only the genres on her shelves.
+- **Book page:** the genre is a tint chip that opens the full list, so she can fix a wrong one. With no genre it reads "Add a genre", in the unselected chip style.
+- **Stats:** gains "Favourite genre".
+
 ## Camera and sheets
 
 - **Camera surround:** `--ink`, never pure black. Viewfinder corners are 2px white, with the card radius.
@@ -45,7 +52,16 @@ The guide only says not to animate the washes or the count. So:
 
 - Sheets rise in 320ms with `cubic-bezier(.22,.8,.3,1)`.
 - On a scan, the cover glides in. The edition's real cover fades in over a placeholder.
-- On add, the cover travels to its spot on Home and settles with one small give. No tick badge, because the guide forbids badges on covers.
+- **On add, a celebration.** This deliberately goes past the guide's "celebrate quietly", because the owner asked for a moment that hypes her up. It stays within the guide's palette:
+  - The camera gives way to the washes.
+  - The cover springs to the centre with a little tilt and a shine sweeps across it.
+  - Confetti in the four wash colours, cobalt and white bursts from behind it.
+  - "Book 15" is called out in Fraunces 36 under an "Added to your library" eyebrow.
+  - The first book and milestones (5, 10, 25, 50, 75, 100, then every 50 or so) get their own line and extra confetti cannons from the bottom corners.
+  - Copy follows the voice rules: no exclamation marks, no emoji.
+  - It holds for about 2.4 seconds (3.2 for milestones), or until she taps. Then the cover swoops to its spot on Home, and the ledge dips under it.
+  - No tick badge, because the guide forbids badges on covers.
+  - Reduce Motion keeps the words, without springs or confetti.
 - Opening a book grows its cover out of its place on the shelf.
 - Reduce Motion swaps all of this for fades.
 
@@ -61,3 +77,4 @@ The guide only says not to animate the washes or the count. So:
 
 - Edition-specific cover lookup by ISBN, and "Take a photo of yours" for the exact copy.
 - Search by title as a fallback in the scanner.
+- **Cover scans:** the words read from the cover appear in an editable search box above the matches, so a misread is a quick fix rather than a rescan.

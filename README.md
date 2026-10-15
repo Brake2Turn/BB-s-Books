@@ -10,9 +10,10 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 |---|---|
 | **Barcode scan** | Point the camera at the ISBN barcode on the back. The book's details and blurb come from Google Books and Open Library. |
 | **The right cover** | Covers are looked up by the exact ISBN on her copy (Amazon's image store, then Open Library, then Google), so the picture matches her edition. If none is found, or it's the wrong one, she can tap **"Take a photo of yours"** and her own copy becomes the cover. Any book's cover can be replaced later from its page. |
-| **Cover scan** | Take a photo of the front cover. The app reads the words on it, on the phone itself, and asks "Which book is it?". Her photo is used as the cover by default, since it's exactly her copy. |
+| **Cover scan** | Take a photo of the front cover. The app cleans up the photo (contrast, light-on-dark lettering), reads the words on it on the phone itself, and ignores cover clutter like "Sunday Times bestseller". It then searches several ways and puts the best match first. The words it read stay editable in case it slipped. Her photo is used as the cover by default, since it's exactly her copy. |
 | **Search by title** | In the scanner, for a book whose barcode won't scan. |
-| **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** sends the cover to its spot on the Home shelf. **Not this one** goes back to the camera. |
+| **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** starts a celebration: the cover springs up, confetti flies, and the book's number is called out, with special lines for the first book and milestones. Then the cover lands in its spot on the shelf. **Not this one** goes back to the camera. |
+| **Genres** | Each book gets a genre from the book databases, tidied into a short list (Fantasy, Romance, Mystery & thriller, and so on). Filter by genre on Home, or change a book's genre on its page. |
 | **Use a photo instead** | Pick a photo of a barcode or cover rather than using the live camera. Handy on a laptop. |
 | **Home** | The library count, the book she's reading now (with progress), then every book on glass shelves of three, with search, sort and Reading / Want to read / Finished filters. Scanning a book twice won't add a duplicate. |
 | **Stats** | Books finished, pages read, average rating and more. |
@@ -77,6 +78,7 @@ js/scan-flow.js       scan screen, result sheet, search, add-to-shelf motion
 js/scanner.js         camera, barcode reading, cover text recognition
 js/lookup.js          Google Books / Open Library lookups
 js/covers.js          edition cover search, cover tiles and placeholders
+js/genres.js          turns database categories into a short genre list
 js/icons.js           line icons
 js/demo.js            sample shelf for ?demo
 js/db.js              on-device storage (IndexedDB)

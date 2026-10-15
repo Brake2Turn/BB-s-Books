@@ -58,6 +58,12 @@
         </div>
         <div class="library-meta">
           <span id="libraryCount" class="caption"></span>
+          <span class="meta-controls">
+          <label class="sort" id="genreWrap" hidden>
+            <span class="visually-hidden">Genre</span>
+            <select id="genreFilter"></select>
+            <i data-icon="chevron"></i>
+          </label>
           <label class="sort">
             <span class="visually-hidden">Sort</span>
             <select id="sort">
@@ -68,6 +74,7 @@
             </select>
             <i data-icon="chevron"></i>
           </label>
+          </span>
         </div>
         <div id="libraryShelves" class="shelves"></div>
       </div>
@@ -161,6 +168,15 @@
       </div>
     </div>
 
+    <!-- Celebration after adding a book: washes, confetti and the big moment -->
+    <div class="celebrate" aria-hidden="true"><canvas class="confetti"></canvas></div>
+    <div class="celebrate-text" role="status" aria-live="polite">
+      <p class="eyebrow"><i></i>Added to your library</p>
+      <p class="celebrate-big"></p>
+      <p class="celebrate-sub"></p>
+      <p class="caption celebrate-hint">Tap to continue</p>
+    </div>
+
     <!-- Result sheet -->
     <section id="resultSheet" class="sheet" aria-label="Book found" aria-hidden="true">
       <div class="handle" aria-hidden="true"></div>
@@ -209,6 +225,13 @@
       <h2 id="dTitle" class="detail-title"></h2>
       <p id="dAuthor" class="detail-author"></p>
       <p id="dMeta" class="caption detail-meta"></p>
+      <div class="detail-genre">
+        <label class="genre-pick">
+          <span class="visually-hidden">Genre</span>
+          <select id="dGenre"></select>
+          <i data-icon="chevron"></i>
+        </label>
+      </div>
 
       <div class="chips tint-chips status" role="group" aria-label="Reading">
         <button class="chip" data-status="want" aria-pressed="false">Want to read</button>

@@ -19,6 +19,7 @@ Rules that are easy to break:
 - **Type.** Fraunces for what a reader would say out loud (app name, counts, book titles), never bold. Only the word "Books" in the app title is italic. Nunito Sans for everything else, 600 or heavier.
 - **Covers.** Always 2:3, `--radius-cover`, cropped, never letterboxed. Use the six placeholder pairs, chosen by book ID. No badges, ratings or labels on covers.
 - **Layout.** The wash background and white top zone sit behind every main screen. 20px gutters, a 3-column shelf grid with a ledge under each row, and the floating tab bar with Scan centred. The header has no profile button (the owner asked for it to be removed).
+- **Celebration.** The add-to-library celebration is the one place the guide's "celebrate quietly" is deliberately exceeded, at the owner's request. Keep it to the guide's colours and voice, and don't add celebrations elsewhere.
 - **Voice.** Short, warm, plain. Use "Reading", "Want to read" and "Finished". No exclamation marks, no emoji. Sentence case, except eyebrows and cover authors.
 - **Accessibility.** AA contrast, 44px tap targets, and support for Reduce Transparency and Reduce Motion (see the end of `styles.css`).
 
@@ -26,7 +27,7 @@ Where the guide is silent (camera, sheets, the book page, motion), follow `DESIG
 
 ## Working on the code
 
-- `js/app.js`: screens (Home, Stats, Feedback, Profile), shelves, book page, backup, feedback sending. `js/scan-flow.js`: scanner UI and add-to-library motion. `js/scanner.js`: camera, barcode and cover reading. `js/lookup.js` and `js/covers.js`: book data and edition covers. `js/db.js`: IndexedDB.
+- `js/app.js`: screens (Home, Stats, Feedback, Profile), shelves, book page, backup, feedback sending. `js/scan-flow.js`: scanner UI and add-to-library motion. `js/scanner.js`: camera, barcode and cover reading. `js/lookup.js` and `js/covers.js`: book data, cover-scan ranking and edition covers. `js/genres.js`: genre mapping. `js/db.js`: IndexedDB.
 - When you add or rename a file the app loads, add it to `SHELL_FILES` in `sw.js` and bump `VERSION`.
 - Run locally with `npx http-server -p 8080 .`. Open `/?demo` for a sample shelf that never touches the real library.
 - Lint: `npx eslint --no-config-lookup --rule '{"no-unused-vars":"error"}' js/*.js sw.js`

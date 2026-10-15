@@ -1,4 +1,6 @@
 // A sample shelf for trying the app out (open the app with ?demo). Never written to the real library.
+const GENRE = {"The Secret History": "Literary fiction", "Circe": "Fantasy", "Piranesi": "Fantasy", "Rebecca": "Classics", "Klara and the Sun": "Science fiction", "Pride and Prejudice": "Classics", "The Night Circus": "Fantasy", "Normal People": "Literary fiction", "Jane Eyre": "Classics", "The Song of Achilles": "Fantasy", "Tomorrow, and Tomorrow, and Tomorrow": "Literary fiction", "A Little Life": "Literary fiction", "Lessons in Chemistry": "Historical fiction", "The Remains of the Day": "Classics"};
+
 const SAMPLES = [
   ['The Secret History', 'Donna Tartt', '9781400031702', 559, 'read', 5, 0, 'A small circle of classics students at a remote Vermont college drift beyond the bounds of ordinary morality, and one of them does not survive it.'],
   ['Circe', 'Madeline Miller', '9780316556347', 393, 'read', 4, 0, 'The witch of Aiaia, banished by the gods, tells her own story: of nymphs and monsters, mortals and Olympians, and the power she makes for herself.'],
@@ -26,6 +28,7 @@ export function sampleBooks() {
     pages,
     page,
     status,
+    genre: GENRE[title] || '',
     readingAt: status === 'reading' ? now - i * 3600000 : undefined,
     rating,
     blurb,

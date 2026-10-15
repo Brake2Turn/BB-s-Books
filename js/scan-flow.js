@@ -94,7 +94,11 @@ function openSheet(sheet) {
 
 function closeSheets() { openSheet(null); }
 
-function showList({ title, sub = '', search = false, items = [], photo = '', photoRatio = '' }) {
+let listPhoto = { photo: '', photoRatio: '' }; // a cover photo carried through an edited search
+
+function showList({ title, sub = '', search = false, query = '', items = [], photo = '', photoRatio = '' }) {
+  listPhoto = { photo, photoRatio };
+  els.searchInput.value = query;
   scanner.stopBarcodeLoop();
   els.listTitle.textContent = title;
   els.listSub.textContent = sub;
@@ -102,7 +106,7 @@ function showList({ title, sub = '', search = false, items = [], photo = '', pho
   renderList(items, photo, photoRatio);
   openSheet(els.list);
   // Focus after the sheet has risen, without letting the browser scroll the camera view.
-  if (search) setTimeout(() => { els.searchInput.focus({ preventScroll: true }); dlg.scrollTop = 0; }, 340);
+  if (search && !query) setTimeout(() => { els.searchInput.focus({ preventScroll: true }); dlg.scrollTop = 0; }, 340);
 }
 
 function renderList(items, photo = '', photoRatio = '') {
@@ -266,18 +270,26 @@ async function readCover(canvas) {
   const photoRatio = `${canvas.width} / ${canvas.height}`;
   try {
     setStatus('Reading the cover…');
-    const text = await scanner.readCoverText(canvas, (m) => {
+    const reading = await scanner.readCoverText(canvas, (m) => {
       if (m.status === 'recognizing text') setStatus(`Reading the cover… ${Math.round(m.progress * 100)}%`);
       else if (m.status && m.status.startsWith('loading')) setStatus('Getting ready to read covers. This happens once.');
     });
-    if (!text || text.replace(/\W/g, '').length < 3) {
+    if (!reading.query || reading.query.replace(/\W/g, '').length < 3) {
       throw new Error('We couldn’t make out the words. Try again in better light, or search by title.');
     }
     setStatus('Searching…');
-    const items = await lookup.search(text);
-    if (!items.length) throw new Error('We couldn’t find that one. Try the barcode, or search by title.');
+    const items = await lookup.searchCover(reading);
     found = null;
-    showList({ title: 'Which book is it?', sub: `Read from the cover: “${text}”`, items, photo, photoRatio });
+    // The words it read stay editable, so a misread is a quick fix rather than a rescan.
+    showList({
+      title: items.length ? 'Which book is it?' : 'We couldn’t find that one',
+      sub: items.length ? 'Not here? Fix the words below and search again.' : 'Check the words it read, or try the barcode.',
+      search: true,
+      query: reading.query,
+      items,
+      photo,
+      photoRatio,
+    });
     setStatus('');
   } catch (err) {
     setStatus(err.message);
@@ -333,7 +345,6 @@ els.photoInput.addEventListener('change', async () => {
 
 els.searchOpen.addEventListener('click', () => {
   found = null;
-  els.searchInput.value = '';
   showList({ title: 'Search by title', sub: 'Add a book whose barcode won’t scan.', search: true });
 });
 
@@ -348,7 +359,7 @@ els.searchForm.addEventListener('submit', async (e) => {
   els.resultList.replaceChildren(msg);
   try {
     const items = await lookup.search(q, 8);
-    if (items.length) renderList(items);
+    if (items.length) renderList(items, listPhoto.photo, listPhoto.photoRatio);
     else msg.textContent = 'Nothing found. Try fewer words, or just the author’s surname.';
   } catch {
     msg.textContent = 'We couldn’t reach the book databases. Check your connection and try again.';
@@ -372,6 +383,140 @@ function move(el, frames, opts) {
   return el.animate(kf, { fill: 'forwards', ...opts }).finished.catch(() => {});
 }
 
+// ---------- Celebration ----------
+
+const MILESTONES = new Set([5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000]);
+const CHEERS = ['A fine addition', 'The shelf grows', 'Good choice', 'Another one for the shelves', 'One more story to keep'];
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n.toLocaleString('en-GB')}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
+/** The words for the moment: first book and milestones get their own lines. */
+function cheerFor(n, book) {
+  const byline = [book.title, (book.authors || [])[0]].filter(Boolean).join(' by ');
+  if (n === 1) return { big: 'Your first book', sub: `Every library starts somewhere. Yours starts with ${byline}.`, milestone: true };
+  if (MILESTONES.has(n)) return { big: `Your ${ordinal(n)} book`, sub: `${byline} marks the milestone.`, milestone: true };
+  return { big: `Book ${n.toLocaleString('en-GB')}`, sub: `${CHEERS[n % CHEERS.length]}: ${byline}.`, milestone: false };
+}
+
+const confettiCanvas = dlg.querySelector('.confetti');
+const celebrateText = dlg.querySelector('.celebrate-text');
+
+/** A burst of confetti in the guide's wash colours and cobalt, using a plain canvas. */
+function confetti(originX, originY, { side = false } = {}) {
+  if (reduced()) return;
+  const css = getComputedStyle(document.documentElement);
+  const colours = ['--wash-coral', '--wash-pink', '--wash-sky', '--wash-apricot', '--accent', '--accent', '--white']
+    .map((t) => css.getPropertyValue(t).trim());
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const w = innerWidth;
+  const h = innerHeight;
+  confettiCanvas.width = w * dpr;
+  confettiCanvas.height = h * dpr;
+  const ctx2 = confettiCanvas.getContext('2d');
+  ctx2.scale(dpr, dpr);
+
+  const make = (x, y, angle, spread, speed, count) => Array.from({ length: count }, () => {
+    const a = angle + (Math.random() - 0.5) * spread;
+    const v = speed * (0.55 + Math.random() * 0.6);
+    return {
+      x, y,
+      vx: Math.cos(a) * v,
+      vy: Math.sin(a) * v,
+      r: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.35,
+      size: 5 + Math.random() * 6,
+      round: Math.random() < 0.3,
+      colour: colours[Math.floor(Math.random() * colours.length)],
+      wobble: Math.random() * 10,
+    };
+  });
+  // One burst from behind the cover, plus cannons from the bottom corners for milestones.
+  let bits = make(originX, originY, -Math.PI / 2, Math.PI * 1.6, 15, 150);
+  if (side) bits = bits.concat(make(0, h, -Math.PI / 3, 0.6, 22, 70), make(w, h, -Math.PI * 2 / 3, 0.6, 22, 70));
+
+  const start = performance.now();
+  const life = side ? 2600 : 2100;
+  const frame = (now) => {
+    const t = now - start;
+    ctx2.clearRect(0, 0, w, h);
+    ctx2.globalAlpha = Math.max(0, Math.min(1, (life - t) / 500));
+    for (const p of bits) {
+      p.vy += 0.32;            // gravity
+      p.vx *= 0.985; p.vy *= 0.985; // air
+      p.x += p.vx + Math.sin((t / 120) + p.wobble) * 0.6;
+      p.y += p.vy;
+      p.r += p.vr;
+      ctx2.save();
+      ctx2.translate(p.x, p.y);
+      ctx2.rotate(p.r);
+      ctx2.fillStyle = p.colour;
+      if (p.round) { ctx2.beginPath(); ctx2.arc(0, 0, p.size / 2.4, 0, Math.PI * 2); ctx2.fill(); }
+      else ctx2.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2 * (0.4 + Math.abs(Math.sin(t / 90 + p.wobble))));
+      ctx2.restore();
+    }
+    if (t < life) requestAnimationFrame(frame);
+    else ctx2.clearRect(0, 0, w, h);
+  };
+  requestAnimationFrame(frame);
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The big moment: the cover springs to the middle of the screen in front of the washes,
+ * shines, confetti bursts from behind it and the count is called out.
+ * Resolves with the transform the cover ended on, once she taps or the moment has had its time.
+ */
+async function celebrate(flyer, from, book) {
+  const n = ctx.count();
+  const cheer = cheerFor(n, book);
+  celebrateText.querySelector('.celebrate-big').textContent = cheer.big;
+  celebrateText.querySelector('.celebrate-sub').textContent = cheer.sub;
+  dlg.classList.add('celebrating');
+
+  const tw = Math.min(innerWidth * 0.46, 200);
+  const th = tw * (from.height / from.width);
+  const s1 = tw / from.width;
+  const dx = innerWidth / 2 - tw / 2 - from.left;
+  const dy = innerHeight * 0.32 - th / 2 - from.top;
+  const centre = `translate(${dx}px, ${dy}px) scale(${s1})`;
+
+  if (reduced()) {
+    flyer.style.transform = centre;
+    flyer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240 });
+  } else {
+    // Spring up: dip, overshoot, settle, with a little tilt.
+    flyer.animate([
+      { transform: 'none' },
+      { transform: `translate(${dx}px, ${dy + 40}px) scale(${s1 * 0.85}) rotate(-8deg)`, offset: 0.5 },
+      { transform: `translate(${dx}px, ${dy - 14}px) scale(${s1 * 1.08}) rotate(3deg)`, offset: 0.78 },
+      { transform: `translate(${dx}px, ${dy + 4}px) scale(${s1 * 0.98}) rotate(-1deg)`, offset: 0.9 },
+      { transform: centre },
+    ], { duration: 820, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'forwards' });
+    setTimeout(() => {
+      confetti(innerWidth / 2, innerHeight * 0.32, { side: cheer.milestone });
+      const shine = document.createElement('i');
+      shine.className = 'shine';
+      flyer.append(shine);
+      shine.animate([{ transform: 'translateX(-130%)' }, { transform: 'translateX(130%)' }], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+    }, 380);
+  }
+  setTimeout(() => celebrateText.classList.add('show'), reduced() ? 0 : 520);
+  haptic(cheer.milestone ? [30, 60, 30, 60, 120] : [25, 50, 60]);
+
+  // Hold the moment; a tap moves on sooner.
+  await Promise.race([
+    wait(cheer.milestone ? 3200 : 2400),
+    wait(700).then(() => new Promise((r) => dlg.addEventListener('click', r, { once: true }))),
+  ]);
+  celebrateText.classList.remove('show');
+  return centre;
+}
+
 async function addToLibrary() {
   // Give the cover search a moment to finish so the shelf gets the real picture.
   await Promise.race([found.coverReady, new Promise((r) => setTimeout(r, 4000))]);
@@ -381,38 +526,39 @@ async function addToLibrary() {
     data.coverRatio = found.photoRatio || '';
   }
   const saved = await ctx.saveBook(data);
-  const tile = ctx.placeIncoming(saved.id);
 
   const source = els.rCover.querySelector('.cover');
   const from = source.getBoundingClientRect();
-  const to = tile.querySelector('.cover').getBoundingClientRect();
 
-  // A copy of the cover travels from the sheet to its place on the shelf.
+  // A copy of the cover does the celebrating, then travels to its place on the shelf.
   const flyer = source.cloneNode(true);
   flyer.classList.add('flying');
   Object.assign(flyer.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` });
   dlg.append(flyer);
   source.style.visibility = 'hidden';
-
   closeSheets();
+
+  const centre = await celebrate(flyer, from, saved);
+
+  const tile = ctx.placeIncoming(saved.id);
+  const to = tile.querySelector('.cover').getBoundingClientRect();
+  dlg.classList.remove('celebrating');
   dlg.classList.add('settling');
   const sx = to.width / from.width;
   const sy = to.height / from.height;
   const dx = to.left - from.left;
   const dy = to.top - from.top;
-  // Heavily damped settle: one small give at the end, like a book set down.
+  // Swoop down to the shelf and land with one small give, like a book set down.
   await move(flyer, [
-    { transform: 'none', offset: 0 },
-    { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 24}px) scale(${(1 + sx) / 2}, ${(1 + sy) / 2})`, offset: 0.45 },
-    { transform: `translate(${dx}px, ${dy + 2}px) scale(${sx}, ${sy * 0.985})`, offset: 0.86 },
+    { transform: centre, offset: 0 },
+    { transform: `translate(${dx}px, ${dy + 3}px) scale(${sx * 1.02}, ${sy * 0.97})`, offset: 0.82 },
     { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, offset: 1 },
-  ], { duration: 640, easing: 'cubic-bezier(.22,.8,.3,1)' });
+  ], { duration: 620, easing: 'cubic-bezier(.5,0,.3,1)' });
 
   ctx.landed(tile);
   flyer.remove();
   haptic(18);
   close();
-  ctx.toast('Added to your library');
 }
 
 // ---------- Open / close ----------
@@ -424,7 +570,7 @@ export async function open(opts = {}) {
   onPhoto = opts.onPhoto || null;
   closeSheets();
   setStatus('');
-  dlg.classList.remove('settling');
+  dlg.classList.remove('settling', 'celebrating');
   dlg.showModal();
   try {
     await scanner.startCamera(els.video);
@@ -444,7 +590,7 @@ export function close() {
   busy = false;
   closeSheets();
   if (dlg.open) dlg.close();
-  dlg.classList.remove('settling');
+  dlg.classList.remove('settling', 'celebrating');
 }
 
 export function init(hooks) { ctx = hooks; }

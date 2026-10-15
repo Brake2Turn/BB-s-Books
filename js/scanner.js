@@ -191,18 +191,110 @@ async function getOcrWorker(onProgress) {
   return ocrWorker;
 }
 
-/** Read the words printed on a cover and turn them into a search query. */
+// Words printed on covers that are never the title or author.
+const COVER_NOISE = new Set(('a novel the bestseller bestselling best seller selling author of international sunday times new york ' +
+  'york times number no winner of prize award shortlisted longlisted now major motion picture film tv series netflix ' +
+  'edition anniversary special illustrated original unabridged million copies sold book club pick reese oprah ' +
+  'introduction foreword by translated with an and from www com co uk women\'s womens fiction literature nobel booker ' +
+  'costa pulitzer national bbc channel').split(' '));
+
+/**
+ * Prepare a photo for text recognition: greyscale, contrast stretched to the full range,
+ * scaled so letters are large enough. Returns the normal canvas and an inverted copy,
+ * because Tesseract reads dark-on-light far better than the light-on-dark many covers use.
+ */
+function prepare(source) {
+  const scale = Math.min(2, 1600 / Math.max(source.width, source.height));
+  const w = Math.round(source.width * scale);
+  const h = Math.round(source.height * scale);
+  const make = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const normal = make();
+  const ctx = normal.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  const px = img.data;
+  const grey = new Uint8ClampedArray(w * h);
+  const hist = new Uint32Array(256);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const g = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000;
+    grey[j] = g;
+    hist[grey[j]]++;
+  }
+  // Stretch between the 2nd and 98th percentiles so faded or glossy covers get full contrast.
+  const total = w * h;
+  let lo = 0, hi = 255, acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > total * 0.02) { lo = v; break; } }
+  acc = 0;
+  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > total * 0.02) { hi = v; break; } }
+  const range = Math.max(1, hi - lo);
+  const inverted = make();
+  const inv = new ImageData(w, h);
+  for (let j = 0, i = 0; j < grey.length; j++, i += 4) {
+    const v = Math.max(0, Math.min(255, ((grey[j] - lo) * 255) / range));
+    px[i] = px[i + 1] = px[i + 2] = v;
+    inv.data[i] = inv.data[i + 1] = inv.data[i + 2] = 255 - v;
+    inv.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  inverted.getContext('2d').putImageData(inv, 0, 0);
+  return { normal, inverted };
+}
+
+function wordsFrom(data) {
+  const lines = (data.blocks || []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines));
+  return lines.flatMap((line, li) => line.words.map((w) => ({
+    text: w.text.replace(/[^\p{L}\p{N}'&-]/gu, ''),
+    raw: w.text,
+    conf: w.confidence,
+    size: w.bbox.y1 - w.bbox.y0,
+    line: li,
+    x: w.bbox.x0,
+    y: w.bbox.y0,
+  })))
+    .filter((w) => w.conf > 50 && w.text.length > 1 && /\p{L}{2,}|\d{2,}/u.test(w.text)
+      // mostly letters: drops "|||" and stray texture read as characters
+      && (w.text.match(/\p{L}/gu) || []).length >= w.text.length * 0.6);
+}
+
+/** How much a reading is worth: confident, large words score highest. */
+const scoreOf = (words) => words.reduce((t, w) => t + w.conf * Math.sqrt(w.size), 0);
+
+/**
+ * Read the words printed on a cover.
+ * Returns { query, title, words } where title is the largest lettering (usually the title),
+ * query is title plus the next most prominent words (usually the author), noise removed.
+ */
 export async function readCoverText(canvasEl, onProgress) {
   const worker = await getOcrWorker(onProgress);
-  const { data } = await worker.recognize(canvasEl, {}, { text: true, blocks: true });
-  const allWords = (data.blocks || []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words)));
-  // Prefer confident, larger words: titles and author names are printed big.
-  const words = allWords
-    .filter((w) => w.confidence > 55 && /[a-z0-9]{2,}/i.test(w.text))
-    .map((w) => ({ text: w.text.replace(/[^\p{L}\p{N}'&-]/gu, ''), size: w.bbox.y1 - w.bbox.y0 }))
-    .filter((w) => w.text.length > 1);
-  if (!words.length) return (data.text || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-  const sizes = words.map((w) => w.size).sort((a, b) => b - a);
-  const cutoff = sizes[Math.min(sizes.length - 1, 7)] * 0.6;
-  return words.filter((w) => w.size >= cutoff).slice(0, 10).map((w) => w.text).join(' ');
+  // Sparse-text mode: covers have scattered words, not paragraphs.
+  await worker.setParameters({ tessedit_pageseg_mode: '11', preserve_interword_spaces: '1' });
+  const { normal, inverted } = prepare(canvasEl);
+  const read = async (c) => wordsFrom((await worker.recognize(c, {}, { text: true, blocks: true })).data);
+
+  let words = await read(normal);
+  // Light lettering on a dark cover reads badly; try it inverted and keep the better reading.
+  const avgConf = words.length ? words.reduce((t, w) => t + w.conf, 0) / words.length : 0;
+  if (words.length < 3 || avgConf < 80) {
+    const alt = await read(inverted);
+    if (scoreOf(alt) > scoreOf(words)) words = alt;
+  }
+
+  const useful = words;
+  if (!useful.length) return { query: '', title: '', words: [] };
+
+  // Title: the largest lettering (within 70% of the biggest), kept in reading order.
+  const maxSize = Math.max(...useful.map((w) => w.size));
+  // Reading order: top to bottom, then left to right within the same printed line.
+  const inOrder = (a, b) => (Math.abs(a.y - b.y) > Math.min(a.size, b.size) * 0.6 ? a.y - b.y : a.x - b.x);
+  const isNoise = (w) => COVER_NOISE.has(w.text.toLowerCase());
+  const titleWords = useful.filter((w) => w.size >= maxSize * 0.7).sort(inOrder);
+  const others = useful
+    .filter((w) => w.size < maxSize * 0.7 && w.size >= maxSize * 0.25 && !isNoise(w))
+    .sort((a, b) => b.size * b.conf - a.size * a.conf)
+    .slice(0, 4)
+    .sort(inOrder);
+
+  const title = titleWords.map((w) => w.text).join(' ');
+  const query = [...titleWords, ...others].map((w) => w.text).slice(0, 10).join(' ');
+  return { query, title, words: useful.map((w) => w.text.toLowerCase()) };
 }

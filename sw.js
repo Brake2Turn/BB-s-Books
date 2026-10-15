@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 
@@ -16,6 +16,7 @@ const SHELL_FILES = [
   'js/covers.js',
   'js/icons.js',
   'js/demo.js',
+  'js/genres.js',
   'fonts/fraunces-latin-full-normal.woff2',
   'fonts/fraunces-latin-full-italic.woff2',
   'fonts/nunito-sans-latin-wght-normal.woff2',
