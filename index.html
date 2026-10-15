@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BB's Books</title>
-  <meta name="description" content="A personal library for every book BB owns.">
-  <meta name="theme-color" content="#F1E9DC" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#2B241F" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Scan a book and it lands in BB's virtual library.">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="color-scheme" content="light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -15,67 +15,124 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="preload" href="fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/nunito-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <h1>BB's Books</h1>
-      <p id="count" class="count"></p>
+  <!-- WashBackground: six blurred circles, always behind everything -->
+  <template id="washTemplate">
+    <div class="washes" aria-hidden="true">
+      <i class="wash w-coral"></i><i class="wash w-pink-top"></i><i class="wash w-sky-mid"></i>
+      <i class="wash w-apricot"></i><i class="wash w-sky-low"></i><i class="wash w-pink-low"></i>
     </div>
-    <button id="menuBtn" class="icon-btn" aria-label="Library options" aria-haspopup="true" aria-expanded="false"><i data-icon="more"></i></button>
-    <div id="menu" class="menu" hidden>
-      <button data-action="export"><i data-icon="download"></i>Back up library</button>
-      <label class="menu-item"><i data-icon="upload"></i>Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
-    </div>
-  </header>
+  </template>
 
-  <div class="toolbar">
-    <label class="search">
-      <i data-icon="search"></i>
-      <input id="search" type="search" placeholder="Search your shelves" autocomplete="off" aria-label="Search your library">
-    </label>
-    <div class="view-toggle" role="group" aria-label="Library view">
-      <button data-view="grid" aria-pressed="true" aria-label="Cover grid"><i data-icon="grid"></i></button>
-      <button data-view="shelf" aria-pressed="false" aria-label="Shelf of spines"><i data-icon="shelf"></i></button>
-    </div>
-  </div>
-  <div class="filters">
-    <label class="quiet-select">
-      <span class="visually-hidden">Sort</span>
-      <select id="sort">
-        <option value="added">Recently added</option>
-        <option value="title">Title</option>
-        <option value="author">Author</option>
-        <option value="rating">Your rating</option>
-      </select>
-      <i data-icon="chevron"></i>
-    </label>
-    <label class="quiet-select">
-      <span class="visually-hidden">Show</span>
-      <select id="filter">
-        <option value="">All books</option>
-        <option value="want">Want to read</option>
-        <option value="reading">Reading</option>
-        <option value="read">Read</option>
-      </select>
-      <i data-icon="chevron"></i>
-    </label>
-  </div>
+  <main class="app">
+    <!-- Home: the H3 hero screen -->
+    <section class="screen" data-screen="home" aria-label="Home">
+      <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">BB's <i>Books</i></h1>
+        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
+      </header>
+      <p class="hero-count"><b data-count></b><span data-count-unit></span></p>
+      <div class="stack">
+        <button id="readingCard" class="reading-card" hidden>
+          <span class="rc-cover"></span>
+          <span class="rc-text">
+            <span class="eyebrow"><i></i>Reading now</span>
+            <span class="rc-title"></span>
+            <span class="rc-author"></span>
+            <span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></span>
+            <span class="caption rc-caption"></span>
+          </span>
+        </button>
+        <div class="chips glass-chips" role="group" aria-label="Show">
+          <button class="chip" data-filter="" aria-pressed="true">All</button>
+          <button class="chip" data-filter="reading" aria-pressed="false">Reading</button>
+          <button class="chip" data-filter="want" aria-pressed="false">Want to read</button>
+        </div>
+        <div id="homeShelves" class="shelves"></div>
+        <button class="see-all" data-go="library" hidden></button>
+      </div>
+    </section>
 
-  <main>
-    <section id="library" class="grid" aria-label="Library"></section>
-    <div id="empty" class="empty" hidden>
-      <p class="empty-line">Every library begins with a single book.</p>
-      <p class="empty-sub">Scan the barcode on the back, or the front cover, to place it on the shelf.</p>
-    </div>
-    <p id="noMatch" class="empty-sub no-match" hidden>Nothing on the shelves matches that.</p>
+    <!-- Library: every book, searchable -->
+    <section class="screen" data-screen="library" aria-label="Library" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">Library</h1>
+        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
+      </header>
+      <div class="stack">
+        <label class="field">
+          <i data-icon="search"></i>
+          <input id="search" type="search" placeholder="Search by title or author" autocomplete="off" aria-label="Search your library">
+        </label>
+        <div class="chips tint-chips" role="group" aria-label="Show">
+          <button class="chip" data-filter="" aria-pressed="true">All</button>
+          <button class="chip" data-filter="reading" aria-pressed="false">Reading</button>
+          <button class="chip" data-filter="want" aria-pressed="false">Want to read</button>
+          <button class="chip" data-filter="read" aria-pressed="false">Finished</button>
+        </div>
+        <div class="library-meta">
+          <span id="libraryCount" class="caption"></span>
+          <label class="sort">
+            <span class="visually-hidden">Sort</span>
+            <select id="sort">
+              <option value="added">Recently added</option>
+              <option value="title">Title</option>
+              <option value="author">Author</option>
+              <option value="rating">Your rating</option>
+            </select>
+            <i data-icon="chevron"></i>
+          </label>
+        </div>
+        <div id="libraryShelves" class="shelves"></div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="screen" data-screen="stats" aria-label="Stats" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">Stats</h1>
+        <button class="profile-btn" data-go="profile" aria-label="Profile"><i data-icon="profile"></i></button>
+      </header>
+      <p class="hero-count"><b id="finishedCount"></b><span id="finishedUnit"></span></p>
+      <div class="stack">
+        <div id="statsCard" class="glass-card stat-list"></div>
+      </div>
+    </section>
+
+    <!-- Profile -->
+    <section class="screen" data-screen="profile" aria-label="Profile" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">Profile</h1>
+      </header>
+      <p class="hero-count"><b data-count></b><span data-count-unit></span></p>
+      <div class="stack">
+        <div class="glass-card list-card">
+          <p class="eyebrow"><i></i>Your library</p>
+          <p class="body-text">Everything is saved on this phone. Back it up now and then, and before you switch phones.</p>
+          <button id="exportBtn" class="row-btn"><i data-icon="download"></i>Back up library</button>
+          <label class="row-btn"><i data-icon="upload"></i>Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <button id="scanBtn" class="fab"><i data-icon="scan"></i>Scan a book</button>
+  <!-- TabBar -->
+  <nav class="tabbar" aria-label="Main">
+    <button class="tab" data-go="home" aria-label="Home" aria-current="page"><i data-icon="home"></i><span class="tab-dot"></span></button>
+    <button class="tab" data-go="library" aria-label="Library"><i data-icon="library"></i><span class="tab-dot"></span></button>
+    <button id="scanBtn" class="scan-btn" aria-label="Scan a book"><i data-icon="scan"></i></button>
+    <button class="tab" data-go="stats" aria-label="Stats"><i data-icon="stats"></i><span class="tab-dot"></span></button>
+    <button class="tab" data-go="profile" aria-label="Profile"><i data-icon="profile"></i><span class="tab-dot"></span></button>
+  </nav>
 
-  <!-- Scan -->
+  <!-- Scan (camera) -->
   <dialog id="scanner" class="scanner" aria-label="Scan a book">
     <div class="camera">
       <video id="video" playsinline muted></video>
@@ -85,10 +142,10 @@
     </div>
 
     <div class="scan-top">
-      <button class="icon-btn on-dark" data-close aria-label="Close"><i data-icon="x"></i></button>
-      <div class="seg on-dark" role="tablist" aria-label="What to scan">
-        <button role="tab" data-mode="barcode" aria-selected="true">Barcode</button>
-        <button role="tab" data-mode="cover" aria-selected="false">Cover</button>
+      <button class="glass-btn" data-close aria-label="Close"><i data-icon="x"></i></button>
+      <div class="seg chips glass-chips" role="tablist" aria-label="What to scan">
+        <button class="chip" role="tab" data-mode="barcode" aria-selected="true">Barcode</button>
+        <button class="chip" role="tab" data-mode="cover" aria-selected="false">Cover</button>
       </div>
       <span class="spacer"></span>
     </div>
@@ -97,9 +154,9 @@
       <p id="scanHint" class="scan-hint">Hold the barcode on the back inside the frame</p>
       <p id="scanStatus" class="scan-status" aria-live="polite"></p>
       <button id="captureBtn" class="shutter" aria-label="Take photo" hidden></button>
-      <div class="scan-alt">
-        <label class="chip on-dark"><i data-icon="image"></i>Use a photo<input id="photoInput" type="file" accept="image/*" hidden></label>
-        <button id="searchOpen" class="chip on-dark"><i data-icon="search"></i>Search by title</button>
+      <div class="chips glass-chips scan-alt">
+        <label class="chip"><i data-icon="image"></i>Use a photo<input id="photoInput" type="file" accept="image/*" hidden></label>
+        <button id="searchOpen" class="chip"><i data-icon="search"></i>Search by title</button>
       </div>
     </div>
 
@@ -109,17 +166,17 @@
       <div class="result-main">
         <div class="result-cover"></div>
         <div class="result-text">
-          <p class="label">Found it</p>
+          <p class="eyebrow"><i></i>Found it</p>
           <h2 class="result-title"></h2>
           <p class="result-author"></p>
-          <p class="result-meta meta"></p>
+          <p class="result-meta caption"></p>
         </div>
       </div>
       <p class="result-blurb"></p>
       <p class="result-note" hidden></p>
       <button class="text-btn cover-swap" hidden><i data-icon="camera"></i><span></span></button>
       <div class="sheet-actions">
-        <button class="btn primary" data-choice="primary">Add to library</button>
+        <button class="primary-btn" data-choice="primary">Add to library</button>
         <button class="text-btn" data-choice="secondary">Not this one</button>
       </div>
     </section>
@@ -129,7 +186,7 @@
       <div class="handle" aria-hidden="true"></div>
       <h2 class="sheet-title"></h2>
       <p class="sheet-sub"></p>
-      <form id="searchForm" class="search sheet-search" hidden>
+      <form id="searchForm" class="field sheet-search" hidden>
         <i data-icon="search"></i>
         <input id="searchInput" type="search" placeholder="Title, author or both" autocomplete="off" aria-label="Search for a book" enterkeyhint="search">
       </form>
@@ -140,45 +197,58 @@
     </section>
   </dialog>
 
-  <!-- Book detail -->
+  <!-- Book page -->
   <dialog id="detail" class="detail" aria-labelledby="dTitle">
-    <button class="icon-btn close-detail" data-close aria-label="Back to library"><i data-icon="x"></i></button>
     <div class="detail-scroll">
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="detail-top">
+        <button class="profile-btn" data-close aria-label="Back to library"><i data-icon="back"></i></button>
+      </div>
       <div class="detail-hero"><div class="detail-cover"></div></div>
-      <div class="detail-body">
-        <h2 id="dTitle" class="detail-title"></h2>
-        <p id="dAuthor" class="detail-author"></p>
-        <p id="dMeta" class="meta"></p>
+      <h2 id="dTitle" class="detail-title"></h2>
+      <p id="dAuthor" class="detail-author"></p>
+      <p id="dMeta" class="caption detail-meta"></p>
 
-        <div class="status seg" role="radiogroup" aria-label="Reading status">
-          <button role="radio" data-status="want" aria-checked="false">Want to read</button>
-          <button role="radio" data-status="reading" aria-checked="false">Reading</button>
-          <button role="radio" data-status="read" aria-checked="false">Read</button>
-        </div>
+      <div class="chips tint-chips status" role="group" aria-label="Reading">
+        <button class="chip" data-status="want" aria-pressed="false">Want to read</button>
+        <button class="chip" data-status="reading" aria-pressed="false">Reading</button>
+        <button class="chip" data-status="read" aria-pressed="false">Finished</button>
+      </div>
 
-        <section class="detail-section">
-          <h3 class="label">Blurb</h3>
-          <p id="dBlurb" class="blurb"></p>
-        </section>
-
-        <section class="detail-section">
-          <h3 class="label">Your rating</h3>
-          <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
-        </section>
-
-        <section class="detail-section">
-          <h3 class="label"><label for="dReview">Your review</label></h3>
-          <textarea id="dReview" rows="6" placeholder="What stayed with you?"></textarea>
-          <div class="review-actions">
-            <button id="saveBtn" class="btn primary">Save review</button>
-            <span id="saved" class="meta" aria-live="polite"></span>
+      <div class="stack detail-stack">
+        <section id="progressCard" class="glass-card" hidden>
+          <p class="eyebrow"><i></i>Progress</p>
+          <span id="dTrack" class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></span>
+          <p id="dProgress" class="caption"></p>
+          <div class="page-row">
+            <label>Page <input id="dPage" type="number" inputmode="numeric" min="0"></label>
+            <label>of <input id="dPages" type="number" inputmode="numeric" min="1"></label>
           </div>
         </section>
 
-        <section class="detail-section quiet-actions">
-          <button id="recoverBtn" class="text-btn"><i data-icon="camera"></i>Use a photo of my copy as the cover</button>
-          <button id="deleteBtn" class="text-btn danger"><i data-icon="trash"></i>Remove from library</button>
+        <section class="glass-card">
+          <p class="eyebrow"><i></i>Blurb</p>
+          <p id="dBlurb" class="body-text blurb"></p>
         </section>
+
+        <section class="glass-card">
+          <p class="eyebrow"><i></i>Your rating</p>
+          <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
+        </section>
+
+        <section class="glass-card">
+          <p class="eyebrow"><label for="dReview"><i></i>Your review</label></p>
+          <textarea id="dReview" rows="6" placeholder="What stayed with you?"></textarea>
+          <div class="review-actions">
+            <button id="saveBtn" class="primary-btn">Save review</button>
+            <span id="saved" class="caption" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <div class="quiet-actions">
+          <button id="recoverBtn" class="text-btn"><i data-icon="camera"></i>Use a photo of my copy as the cover</button>
+          <button id="deleteBtn" class="text-btn"><i data-icon="trash"></i>Remove from library</button>
+        </div>
       </div>
     </div>
   </dialog>

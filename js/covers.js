@@ -1,4 +1,4 @@
-// Finding the cover for the exact edition scanned, and drawing covers and spines.
+// Finding the cover for the exact edition scanned, and drawing cover tiles.
 
 /** ISBN-10 for a 978- ISBN-13 (Amazon's image store is keyed on it). */
 export function isbn13to10(isbn) {
@@ -44,82 +44,23 @@ export async function firstWorking(urls) {
   return results.find(Boolean) || null;
 }
 
-// ---------- Colour ----------
+// ---------- Elements ----------
 
-// Desaturated sage, ochre, dusty blue and terracotta, in two depths.
-const TONES = ['#8E9A80', '#B89A68', '#7F909F', '#B07E66', '#6E7A62', '#9C7F4C', '#5F7080', '#94634C'];
+// The style guide's six placeholder pairs (cover-sage … cover-lilac in styles.css).
+const PLACEHOLDERS = ['sage', 'periwinkle', 'cream', 'mist', 'peach', 'lilac'];
 
 function hash(s) {
   return [...(s || '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 }
 
-export function toneFor(title) {
-  return TONES[hash(title) % TONES.length];
+/** Same book, same placeholder, every time: keyed on its ID (or ISBN/title before it has one). */
+export function placeholderFor(book) {
+  return PLACEHOLDERS[hash(book.id || book.isbn || book.title) % PLACEHOLDERS.length];
 }
-
-function hexToRgb(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function rgbToHex([r, g, b]) {
-  return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function luminance([r, g, b]) {
-  const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-}
-
-/** Ink or paper text, whichever reads better on the given colour. */
-export function textOn(hex) {
-  const l = luminance(hexToRgb(hex));
-  const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  return contrast(l, luminance(hexToRgb('#2E2620'))) >= contrast(l, luminance(hexToRgb('#F1E9DC'))) ? '#2E2620' : '#F1E9DC';
-}
-
-/**
- * The cover's dominant colour, muted so it sits in the palette. Needs the image host
- * to allow cross-origin reads; returns null if it doesn't.
- */
-export function dominantColour(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const c = document.createElement('canvas');
-        c.width = 24; c.height = 36;
-        const ctx = c.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, 24, 36);
-        const px = ctx.getImageData(0, 0, 24, 36).data;
-        let r = 0, g = 0, b = 0, weight = 0;
-        for (let i = 0; i < px.length; i += 4) {
-          const max = Math.max(px[i], px[i + 1], px[i + 2]);
-          const min = Math.min(px[i], px[i + 1], px[i + 2]);
-          const w = 0.15 + (max - min) / 255; // favour colourful pixels over paper-white margins
-          r += px[i] * w; g += px[i + 1] * w; b += px[i + 2] * w; weight += w;
-        }
-        const avg = [r / weight, g / weight, b / weight];
-        // Mute: pull 22% toward warm paper-sunk.
-        const sunk = hexToRgb('#E6DCCB');
-        resolve(rgbToHex(avg.map((v, i) => v * 0.78 + sunk[i] * 0.22)));
-      } catch {
-        resolve(null); // tainted canvas: host doesn't allow it
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
-
-// ---------- Elements ----------
 
 function placeholder(book, wrap) {
-  wrap.classList.add('placeholder');
-  const tone = toneFor(book.title);
-  wrap.style.setProperty('--tone', tone);
-  wrap.style.setProperty('--tone-ink', textOn(tone));
+  wrap.classList.remove('loading');
+  wrap.classList.add('placeholder', `ph-${placeholderFor(book)}`);
   const t = document.createElement('span');
   t.className = 'ph-title';
   t.textContent = book.title;
@@ -129,26 +70,25 @@ function placeholder(book, wrap) {
   wrap.replaceChildren(t, a);
 }
 
-/** A cover at its true aspect ratio, or a typographic stand-in when there's no picture. */
+/** A cover at 2:3, cropped (never stretched or letterboxed), or a placeholder tile when there's no picture. */
 export function coverEl(book, className = 'cover') {
   const wrap = document.createElement('div');
   wrap.className = className;
-  const src = book.cover;
-  if (book.coverRatio) wrap.style.aspectRatio = book.coverRatio;
-  if (!src) {
+  if (!book.cover) {
     placeholder(book, wrap);
     return wrap;
   }
+  wrap.classList.add('loading');
   const img = new Image();
   img.alt = '';
   img.decoding = 'async';
   img.onload = () => {
     if (img.naturalWidth < 10) { img.onerror(); return; } // Amazon's 1x1 "no image"
-    wrap.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+    wrap.classList.remove('loading');
     wrap.classList.add('loaded');
   };
   img.onerror = () => placeholder(book, wrap);
-  img.src = src;
+  img.src = book.cover;
   wrap.append(img);
   return wrap;
 }

@@ -1,37 +1,61 @@
 # Design decisions
 
-Choices the design brief didn't settle, or where it had to bend, and why.
+The app follows the BB's Books design system (`design/`, live at https://claude.ai/artifact/E2SRwHZcNvsaeYF65ApfRD). This file records where the guide is silent and the call made instead. Add to it whenever you make a new one.
 
-## Open choices from the brief
+## Screens the guide doesn't draw
 
-- **Platform:** web app (PWA), installed to the home screen. No app store, works on iPhone and Android, and can be tested on a laptop. Haptics use `navigator.vibrate`, which Android supports. iPhones don't allow web haptics, so they just skip that step.
-- **Theme:** light by default; dark follows the phone's system setting.
+The guide draws one screen (Home, board H3) and says new screens should reuse its frame, washes, white zone and rhythm. Each screen below is built from those parts.
 
-## Where the brief bent
+- **Library tab:**
+  - The same header, with "Library" as the title.
+  - A search field from the white-zone kit (white fill, `--outline`, pill), then tint chips: All, Reading, Want to read, Finished.
+  - A small sort control, then every book on shelf rows.
+  - Four chips don't fit 350px, so the row scrolls sideways rather than wrapping.
+- **Home vs. Library:** Home shows the six most recently added books (the board's two shelves) and a "See all N in your library" link. Library holds everything, with search and sort.
+- **Stats tab:** a HeroCount of finished books ("7 finished") and a glass card listing reading, want to read, pages read, average rating and books added this month.
+- **Profile tab:** the library count, then a glass card with Back up and Restore. The header's profile button opens the same screen.
+- **Book page:** the washes and white zone behind it.
+  - A tint back button, then the cover (BookCover spec, centred).
+  - The title in Fraunces 36/42 at weight 400, centred. 500 is kept for the app name, and the guide never makes Fraunces bold.
+  - The author, and tint status chips.
+  - Glass cards for progress, blurb, rating and review, each headed by an eyebrow.
 
-- **Button text contrast.** Light-mode terracotta `#B4623F` with paper text gives 3.9:1, below WCAG AA (4.5:1) for 16px labels. Filled buttons use `--accent-fill: #A35939`: the same hue, slightly deeper, at 4.6:1. Everywhere else the accent stays `#B4623F`. Dark mode passes as specified (5.1:1).
-- **The add-to-library moment.** Earlier the owner asked for a "whizz in, reveal, plop down" moment. The brief asks for quiet motion and no confetti or sparkles. Both are kept in a toned-down form:
-  - The cover glides in from the side with a slight tilt as the sheet rises.
-  - It starts as a typographic stand-in and the real cover fades in over it once the edition's picture loads (the reveal).
-  - On add, it travels to its exact spot on the shelf and settles with one small, heavily damped give (the plop).
-  - Stars, spin, blur and bounce were removed.
-- **"Settles toward the library tab".** The app has no tab bar: the library is the home screen. So the cover lands in its real place in the grid or shelf, and the sage tick appears on the book itself.
-- **Opening a book.** The owner asked for the cover to "maximise" when tapped. The detail page fades and rises as the brief asks, and the cover grows from its spot on the shelf to its large size (320ms, brief easing). Reduced-motion users get a plain fade.
+## Components the guide doesn't specify
 
-## Small calls
+- **Primary button** (Add to library, Save review): built like the scan button. Cobalt pill, 52px tall, white 60% border, `--shadow-scan`, Nunito Sans 14/700. It is the screen's one cobalt action, as the guide asks.
+- **Rating stars:** cobalt fill when chosen (a mark, not text), `--ink-2` outline otherwise, 44px targets.
+- **Page inputs and review box:** the selected glass chip's fill, border and highlight. The review box uses a 16px radius: a pill can't hold several lines, and 24px looked too round at that size.
+- **Toast:** a selected glass chip ("Added to your library").
+- **Reading progress:** the guide's ProgressBar needs pages read, so the book page has "Page __ of __" inputs while a book is marked Reading. The reading card shows the most recently started book.
 
-- **Radii beyond 4/10/16:**
-  - Segmented-control thumbs use 8px, so they sit concentric inside their 10px track.
-  - The camera shutter is a circle, by long camera convention.
-  - The sheet's drag handle is a 4px pill.
-- **Tiny section labels** (Blurb, Your rating) use letter-spaced caps at 12px, as the brief allows. Everything else is sentence case.
-- **Rating on the grid** is a row of small ochre stars under the cover rather than a badge, so nothing sits on top of the cover art.
-- **Shelf mode:**
-  - Spine thickness comes from page count and height varies a little by title, so a shelf looks lived-in rather than uniform.
-  - Spine colour is the cover's dominant colour pulled 22% toward `paper-sunk`. If the image host blocks colour reading, the spine falls back to the same title-derived tone the placeholders use.
-- **Placeholder tones** are desaturated sage, ochre, dusty blue and terracotta in two depths (8 tones). Each title always maps to the same tone. Text on them is ink or paper, whichever has more contrast.
-- **The camera surround** is always umber (`#221C18`), in both themes, so the camera view never looks black and the paper-coloured brackets read well over it.
-- **Paper grain** is an SVG noise layer at 5% opacity. It's only visible if you look for it.
-- **Fonts** are self-hosted (Fraunces and Instrument Sans variable files, about 300 KB total). They work offline and never fall back to a system font after the first visit.
-- **Status** (Want to read, Reading, Read) starts empty for a newly scanned book, because an owned book isn't automatically one she wants to read. Tapping the selected status again clears it.
-- **Search by title** is in the scanner, as the brief's fallback for books that won't scan. Books are still only ever added from the scan screen.
+## Camera and sheets
+
+- **Camera surround:** `--ink`, never pure black. Viewfinder corners are 2px white, with the card radius.
+- **Camera controls:** glass (close button, Barcode/Cover chips, Use a photo, Search by title). Glass belongs over imagery. The Scan button isn't shown here, as the guide's TabBar spec says.
+- **Result and search sheets:** solid white with the card radius on top, because glass turns grey over the dark surround. Inside the sheets the white-zone kit applies: tint note box, outline field, eyebrow with a cobalt dot.
+
+## Motion
+
+The guide only says not to animate the washes or the count. So:
+
+- Sheets rise in 320ms with `cubic-bezier(.22,.8,.3,1)`.
+- On a scan, the cover glides in. The edition's real cover fades in over a placeholder.
+- On add, the cover travels to its spot on Home and settles with one small give. No tick badge, because the guide forbids badges on covers.
+- Opening a book grows its cover out of its place on the shelf.
+- Reduce Motion swaps all of this for fades.
+
+## Guide rules applied in code
+
+- **Glass vs. tint:**
+  - Home's chips are glass when the reading card is showing (they sit over the washes, as on H3).
+  - With no reading card they move up onto white, so they switch to tint.
+  - Library chips are always tint.
+- **Reduce Transparency:** glass becomes opaque white, glass chips become tint, and ledges become solid.
+- **Light only:** the guide is light-only, so the earlier dark mode was removed. `color-scheme: light` stops browsers darkening it.
+- **Fonts** are self-hosted rather than loaded from Google Fonts, so the app works offline. Fraunces covers weights 300–500 and italic; Nunito Sans is the variable file.
+- **Cover loading tone** is `#EDE7E4` (from the BookCover spec), as the token `--cover-loading`.
+
+## Kept from earlier work
+
+- Edition-specific cover lookup by ISBN, and "Take a photo of yours" for the exact copy.
+- Search by title as a fallback in the scanner.

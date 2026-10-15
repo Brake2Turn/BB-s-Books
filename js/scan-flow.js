@@ -140,7 +140,7 @@ function showResult(book, { photo = '', photoRatio = '' } = {}) {
   els.rMeta.textContent = [book.published && book.published.slice(0, 4), book.pages && `${book.pages} pages`, book.isbn && `ISBN ${book.isbn}`].filter(Boolean).join('  ·  ');
   els.rBlurb.textContent = book.blurb || '';
   els.rNote.hidden = !dup;
-  els.rNote.textContent = dup ? 'This one is already on your shelf.' : '';
+  els.rNote.textContent = dup ? 'This one is already in your library.' : '';
   els.primary.textContent = dup ? 'Open book' : 'Add to library';
   els.secondary.textContent = dup ? 'Scan another' : 'Not this one';
   els.primary.disabled = false;
@@ -343,7 +343,7 @@ els.searchForm.addEventListener('submit', async (e) => {
   if (!q) return;
   els.searchInput.blur();
   const msg = document.createElement('li');
-  msg.className = 'meta';
+  msg.className = 'caption';
   msg.textContent = 'Searching…';
   els.resultList.replaceChildren(msg);
   try {
@@ -385,7 +385,7 @@ async function addToLibrary() {
 
   const source = els.rCover.querySelector('.cover');
   const from = source.getBoundingClientRect();
-  const to = tile.querySelector('.cover, .spine').getBoundingClientRect();
+  const to = tile.querySelector('.cover').getBoundingClientRect();
 
   // A copy of the cover travels from the sheet to its place on the shelf.
   const flyer = source.cloneNode(true);
@@ -402,17 +402,17 @@ async function addToLibrary() {
   const dy = to.top - from.top;
   // Heavily damped settle: one small give at the end, like a book set down.
   await move(flyer, [
-    { transform: 'none', boxShadow: '0 18px 40px rgba(46,38,32,.22)', offset: 0 },
+    { transform: 'none', offset: 0 },
     { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 24}px) scale(${(1 + sx) / 2}, ${(1 + sy) / 2})`, offset: 0.45 },
-    { transform: `translate(${dx}px, ${dy + 2}px) scale(${sx}, ${sy * 0.985})`, boxShadow: '0 1px 2px rgba(46,38,32,.1)', offset: 0.86 },
-    { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, boxShadow: '0 0 0 rgba(46,38,32,0)', offset: 1 },
+    { transform: `translate(${dx}px, ${dy + 2}px) scale(${sx}, ${sy * 0.985})`, offset: 0.86 },
+    { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, offset: 1 },
   ], { duration: 640, easing: 'cubic-bezier(.22,.8,.3,1)' });
 
   ctx.landed(tile);
   flyer.remove();
   haptic(18);
   close();
-  ctx.toast('Added to your shelf.');
+  ctx.toast('Added to your library');
 }
 
 // ---------- Open / close ----------

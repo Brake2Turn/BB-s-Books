@@ -1,20 +1,25 @@
 import * as db from './db.js';
 import * as scan from './scan-flow.js';
-import { coverEl, dominantColour, toneFor, textOn } from './covers.js';
+import { coverEl } from './covers.js';
 import { icon, hydrateIcons } from './icons.js';
 import { sampleBooks } from './demo.js';
 
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 const els = {
-  library: $('#library'),
-  empty: $('#empty'),
-  noMatch: $('#noMatch'),
-  count: $('#count'),
+  screens: $$('.screen'),
+  tabs: $$('.tabbar .tab'),
+  readingCard: $('#readingCard'),
+  homeShelves: $('#homeShelves'),
+  seeAll: $('.see-all'),
+  libraryShelves: $('#libraryShelves'),
+  libraryCount: $('#libraryCount'),
   search: $('#search'),
   sort: $('#sort'),
-  filter: $('#filter'),
-  viewToggle: $('.view-toggle'),
+  finishedCount: $('#finishedCount'),
+  finishedUnit: $('#finishedUnit'),
+  statsCard: $('#statsCard'),
   scanBtn: $('#scanBtn'),
   detail: $('#detail'),
   dCover: $('.detail-cover'),
@@ -23,25 +28,35 @@ const els = {
   dMeta: $('#dMeta'),
   dBlurb: $('#dBlurb'),
   status: $('.status'),
+  progressCard: $('#progressCard'),
+  dTrack: $('#dTrack'),
+  dProgress: $('#dProgress'),
+  dPage: $('#dPage'),
+  dPages: $('#dPages'),
   stars: $('#stars'),
   dReview: $('#dReview'),
   saveBtn: $('#saveBtn'),
   saved: $('#saved'),
   recoverBtn: $('#recoverBtn'),
   deleteBtn: $('#deleteBtn'),
-  menuBtn: $('#menuBtn'),
-  menu: $('#menu'),
+  exportBtn: $('#exportBtn'),
   importFile: $('#importFile'),
   toast: $('#toast'),
 };
 
+const HOME_LIMIT = 6; // two shelves on Home; the rest live in Library
+
 let books = [];
-let view = 'grid';
-let current = null; // book open in the detail view
+let screen = 'home';
+let homeFilter = '';
+let libraryFilter = '';
+let current = null; // book open on the book page
 let draftRating = 0;
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const authorLine = (b) => (b.authors || []).join(', ');
+const plural = (n, one, many = `${one}s`) => (n === 1 ? one : many);
+const fmt = (n) => n.toLocaleString('en-GB');
 
 function pref(key, value) {
   try {
@@ -80,94 +95,162 @@ async function saveRecord(book) {
   return book;
 }
 
-// ---------- Library ----------
-
-function visibleBooks() {
-  const q = normalise(els.search.value);
-  const status = els.filter.value;
-  const list = books.filter((b) => (!q || normalise(`${b.title} ${authorLine(b)}`).includes(q)) && (!status || b.status === status));
-  const cmp = {
-    added: (a, b) => b.addedAt - a.addedAt,
-    title: (a, b) => a.title.localeCompare(b.title),
-    author: (a, b) => authorLine(a).localeCompare(authorLine(b)) || a.title.localeCompare(b.title),
-    rating: (a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
-  }[els.sort.value];
-  return list.sort(cmp);
+/** "58% · 181 of 312 pages", in the words the style guide uses. */
+function progressOf(book) {
+  const pages = Number(book.pages) || 0;
+  const page = Math.min(Number(book.page) || 0, pages || Infinity);
+  if (book.status === 'read') return { pct: 100, text: 'Finished' };
+  if (!pages) return { pct: 0, text: page ? `On page ${fmt(page)}` : 'Pick up where you left off' };
+  if (!page) return { pct: 0, text: 'Not started' };
+  const pct = Math.round((page / pages) * 100);
+  return { pct, text: `${pct}% · ${fmt(page)} of ${fmt(pages)} pages` };
 }
 
-function hashOf(s) {
-  return [...(s || '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+function setProgress(track, pct) {
+  track.style.setProperty('--progress', `${pct}%`);
+  track.setAttribute('aria-valuenow', String(pct));
 }
 
-function gridItem(book) {
+// ---------- Screens ----------
+
+function showScreen(name) {
+  screen = name;
+  els.screens.forEach((s) => { s.hidden = s.dataset.screen !== name; });
+  els.tabs.forEach((t) => {
+    if (t.dataset.go === name) t.setAttribute('aria-current', 'page');
+    else t.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, 0);
+  render();
+}
+
+// ---------- Shelves ----------
+
+function bookTile(book) {
   const btn = document.createElement('button');
   btn.className = 'book';
   btn.dataset.id = book.id;
-  btn.setAttribute('aria-label', `${book.title}${book.authors?.length ? `, ${authorLine(book)}` : ''}${book.rating ? `, rated ${book.rating} of 5` : ''}`);
+  btn.setAttribute('aria-label', `${book.title}${book.authors?.length ? `, ${authorLine(book)}` : ''}`);
   btn.append(coverEl(book));
-  const rating = document.createElement('span');
-  rating.className = 'rating';
-  rating.innerHTML = icon('star').repeat(book.rating || 0);
-  btn.append(rating);
   btn.addEventListener('click', () => openDetail(book.id, btn.querySelector('.cover')));
   return btn;
 }
 
-function shelfItem(book) {
-  const slot = document.createElement('div');
-  slot.className = 'spine-slot';
-  slot.dataset.id = book.id;
-  const spine = document.createElement('button');
-  spine.className = 'spine';
-  spine.setAttribute('aria-label', `${book.title}${book.authors?.length ? `, ${authorLine(book)}` : ''}`);
-  const thickness = book.pages ? Math.round(Math.min(56, Math.max(22, 16 + book.pages / 16))) : 30;
-  const height = 150 + (hashOf(book.title) % 38);
-  const colour = book.spine || toneFor(book.title);
-  spine.style.setProperty('--w', `${thickness}px`);
-  spine.style.setProperty('--h', `${height}px`);
-  spine.style.setProperty('--spine', colour);
-  spine.style.setProperty('--spine-ink', textOn(colour));
-  const label = document.createElement('span');
-  label.textContent = book.title;
-  spine.append(label);
-  spine.addEventListener('click', () => openDetail(book.id, spine));
-  slot.append(spine);
-  if (book.cover && book.spine === undefined) learnSpineColour(book, spine);
-  return slot;
-}
-
-/** Pull a spine colour from the cover once, and remember it. */
-async function learnSpineColour(book, spineEl) {
-  const colour = await dominantColour(book.cover);
-  const latest = books.find((b) => b.id === book.id);
-  if (!latest) return;
-  await saveRecord({ ...latest, spine: colour || null });
-  if (colour && spineEl.isConnected) {
-    spineEl.style.setProperty('--spine', colour);
-    spineEl.style.setProperty('--spine-ink', textOn(colour));
+/** ShelfRow: three covers on a ledge; the ledge stays full width on a partial row. */
+function shelves(list, emptyText) {
+  if (!list.length) {
+    const empty = document.createElement('div');
+    empty.className = 'shelf-row shelf-empty';
+    empty.innerHTML = '<p class="caption"></p><div class="ledge"></div>';
+    empty.querySelector('p').textContent = emptyText;
+    return [empty];
   }
+  const rows = [];
+  for (let i = 0; i < list.length; i += 3) {
+    const row = document.createElement('div');
+    row.className = 'shelf-row';
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.append(...list.slice(i, i + 3).map(bookTile));
+    const ledge = document.createElement('div');
+    ledge.className = 'ledge';
+    row.append(grid, ledge);
+    rows.push(row);
+  }
+  return rows;
 }
 
-function render(incomingId) {
-  const list = visibleBooks();
-  els.library.classList.toggle('shelf-view', view === 'shelf');
-  els.library.replaceChildren(...list.map((b) => {
-    const el = view === 'shelf' ? shelfItem(b) : gridItem(b);
-    if (b.id === incomingId) el.style.visibility = 'hidden';
-    return el;
-  }));
-  els.empty.hidden = books.length > 0;
-  els.noMatch.hidden = !(books.length && !list.length);
+const byRecent = (a, b) => b.addedAt - a.addedAt;
+const matches = (filter) => (b) => !filter || b.status === filter;
+
+function renderCounts() {
   const n = books.length;
-  const read = books.filter((b) => b.status === 'read').length;
-  els.count.textContent = n ? `${n} book${n === 1 ? '' : 's'}${read ? `, ${read} read` : ''}` : 'An empty shelf, for now';
+  $$('[data-count]').forEach((el) => { el.textContent = fmt(n); });
+  $$('[data-count-unit]').forEach((el) => { el.textContent = plural(n, 'book'); });
 }
 
-function setView(next) {
-  view = next;
-  pref('bbs-view', next);
-  els.viewToggle.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === next)));
-  render();
+function renderReadingCard() {
+  const reading = books.filter((b) => b.status === 'reading').sort((a, b) => (b.readingAt || b.addedAt) - (a.readingAt || a.addedAt))[0];
+  els.readingCard.hidden = !reading;
+  if (!reading) return;
+  els.readingCard.dataset.id = reading.id;
+  els.readingCard.querySelector('.rc-cover').replaceChildren(coverEl(reading));
+  els.readingCard.querySelector('.rc-title').textContent = reading.title;
+  els.readingCard.querySelector('.rc-author').textContent = authorLine(reading);
+  const p = progressOf(reading);
+  setProgress(els.readingCard.querySelector('.track'), p.pct);
+  els.readingCard.querySelector('.rc-caption').textContent = p.text;
+}
+
+function renderHome() {
+  renderReadingCard();
+  // Without the reading card the chips move up onto the white zone, where glass reads grey: use tint there.
+  const chips = $('[data-screen="home"] .chips');
+  chips.classList.toggle('glass-chips', !els.readingCard.hidden);
+  chips.classList.toggle('tint-chips', els.readingCard.hidden);
+  const list = books.filter(matches(homeFilter)).sort(byRecent);
+  const empty = books.length ? 'Nothing here yet' : 'Scan a book to start this shelf';
+  els.homeShelves.replaceChildren(...shelves(list.slice(0, HOME_LIMIT), empty));
+  els.seeAll.hidden = list.length <= HOME_LIMIT;
+  els.seeAll.textContent = `See all ${fmt(list.length)} in your library`;
+}
+
+function renderLibrary() {
+  const q = normalise(els.search.value);
+  const cmp = {
+    added: byRecent,
+    title: (a, b) => a.title.localeCompare(b.title),
+    author: (a, b) => authorLine(a).localeCompare(authorLine(b)) || a.title.localeCompare(b.title),
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
+  }[els.sort.value];
+  const list = books
+    .filter(matches(libraryFilter))
+    .filter((b) => !q || normalise(`${b.title} ${authorLine(b)}`).includes(q))
+    .sort(cmp);
+  const total = books.length;
+  els.libraryCount.textContent = list.length === total ? `${fmt(total)} ${plural(total, 'book')}` : `${fmt(list.length)} of ${fmt(total)} books`;
+  const empty = !total ? 'Scan a book to start this shelf' : q ? 'Nothing matches that search' : 'Nothing here yet';
+  els.libraryShelves.replaceChildren(...shelves(list, empty));
+}
+
+function renderStats() {
+  const finished = books.filter((b) => b.status === 'read');
+  els.finishedCount.textContent = fmt(finished.length);
+  els.finishedUnit.textContent = 'finished';
+  const count = (s) => books.filter((b) => b.status === s).length;
+  const pagesRead = finished.reduce((t, b) => t + (Number(b.pages) || 0), 0)
+    + books.filter((b) => b.status === 'reading').reduce((t, b) => t + (Number(b.page) || 0), 0);
+  const rated = books.filter((b) => b.rating);
+  const avg = rated.length ? (rated.reduce((t, b) => t + b.rating, 0) / rated.length).toFixed(1) : null;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const rows = [
+    ['Reading', fmt(count('reading'))],
+    ['Want to read', fmt(count('want'))],
+    ['Pages read', fmt(pagesRead)],
+    ['Average rating', avg ? `${avg} of 5` : 'No ratings yet'],
+    ['Added this month', fmt(books.filter((b) => b.addedAt >= monthStart).length)],
+  ];
+  els.statsCard.replaceChildren(...rows.map(([label, value]) => {
+    const row = document.createElement('div');
+    row.className = 'stat';
+    const l = document.createElement('span');
+    l.textContent = label;
+    const v = document.createElement('b');
+    v.textContent = value;
+    row.append(l, v);
+    return row;
+  }));
+}
+
+function render() {
+  renderCounts();
+  if (screen === 'home') renderHome();
+  if (screen === 'library') renderLibrary();
+  if (screen === 'stats') renderStats();
+}
+
+function setFilter(group, value) {
+  group.querySelectorAll('[data-filter]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.filter === value)));
 }
 
 async function load() {
@@ -179,7 +262,8 @@ async function load() {
   render();
 }
 
-// Hooks for the scan screen.
+// ---------- Hooks for the scan screen ----------
+
 async function saveBook(data) {
   return saveRecord({
     id: uid(),
@@ -187,11 +271,11 @@ async function saveBook(data) {
     authors: data.authors || [],
     blurb: data.blurb || '',
     cover: data.cover || '',
-    coverRatio: data.coverRatio || '',
     isbn: data.isbn || '',
     publisher: data.publisher || '',
     published: data.published || '',
     pages: data.pages || null,
+    page: 0,
     status: '',
     rating: 0,
     review: '',
@@ -199,28 +283,23 @@ async function saveBook(data) {
   });
 }
 
-/** Render with the new book in place but hidden, scrolled into view, ready for the cover to land. */
+/** Show Home with the new book in its place but hidden, ready for the cover to land there. */
 function placeIncoming(id) {
-  els.search.value = '';
-  els.filter.value = '';
-  render(id);
-  const tile = els.library.querySelector(`[data-id="${id}"]`);
+  homeFilter = '';
+  setFilter($('[data-screen="home"] .chips'), '');
+  if (screen !== 'home') showScreen('home');
+  render();
+  const tile = els.homeShelves.querySelector(`[data-id="${id}"]`);
+  tile.style.visibility = 'hidden';
   tile.scrollIntoView({ block: 'center', behavior: 'instant' });
   return tile;
 }
 
 function landed(tile) {
   tile.style.visibility = '';
-  const tick = document.createElement('span');
-  tick.className = 'tick';
-  tick.innerHTML = icon('check');
-  tile.append(tick); // on the tile, not inside the cover, so it isn't clipped
-  setTimeout(() => tick.remove(), 1900);
-  const book = books.find((b) => b.id === tile.dataset.id);
-  if (book && book.cover) learnSpineColour(book, tile.querySelector('.spine') || document.createElement('i'));
 }
 
-// ---------- Detail ----------
+// ---------- Book page ----------
 
 function renderStars() {
   els.stars.replaceChildren(...[1, 2, 3, 4, 5].map((n) => {
@@ -229,7 +308,7 @@ function renderStars() {
     b.className = `star${n <= draftRating ? ' on' : ''}`;
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(n === draftRating));
-    b.setAttribute('aria-label', `${n} star${n === 1 ? '' : 's'}`);
+    b.setAttribute('aria-label', `${n} ${plural(n, 'star')}`);
     b.innerHTML = icon('star');
     b.addEventListener('click', () => {
       draftRating = draftRating === n ? 0 : n; // tap the same star again to clear
@@ -241,7 +320,13 @@ function renderStars() {
 }
 
 function renderStatus() {
-  els.status.querySelectorAll('[data-status]').forEach((b) => b.setAttribute('aria-checked', String(current.status === b.dataset.status)));
+  els.status.querySelectorAll('[data-status]').forEach((b) => b.setAttribute('aria-pressed', String(current.status === b.dataset.status)));
+  els.progressCard.hidden = current.status !== 'reading';
+  const p = progressOf(current);
+  setProgress(els.dTrack, p.pct);
+  els.dProgress.textContent = p.text;
+  els.dPage.value = current.page || '';
+  els.dPages.value = current.pages || '';
 }
 
 function openDetail(id, originEl) {
@@ -251,18 +336,18 @@ function openDetail(id, originEl) {
   els.dCover.replaceChildren(coverEl(c));
   els.dTitle.textContent = c.title;
   els.dAuthor.textContent = authorLine(c) || 'Author unknown';
-  els.dMeta.textContent = [c.publisher, c.published && c.published.slice(0, 4), c.pages && `${c.pages} pages`, c.isbn && `ISBN ${c.isbn}`].filter(Boolean).join('  ·  ');
+  els.dMeta.textContent = [c.published && c.published.slice(0, 4), c.pages && `${fmt(c.pages)} pages`, c.isbn && `ISBN ${c.isbn}`].filter(Boolean).join(' · ');
   els.dBlurb.textContent = c.blurb || 'No blurb came with this edition.';
   els.dBlurb.classList.toggle('empty', !c.blurb);
   draftRating = c.rating || 0;
   renderStars();
   renderStatus();
   els.dReview.value = c.review || '';
-  els.saved.textContent = c.reviewedAt && c.review ? `Saved ${new Date(c.reviewedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}` : '';
+  els.saved.textContent = c.reviewedAt && c.review ? `Saved ${new Date(c.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : '';
   els.detail.showModal();
   els.detail.querySelector('.detail-scroll').scrollTop = 0;
 
-  // Open the cover out of its place on the shelf.
+  // The cover grows out of its place on the shelf.
   if (originEl && !reduced()) {
     const from = originEl.getBoundingClientRect();
     const to = els.dCover.getBoundingClientRect();
@@ -277,8 +362,7 @@ function openDetail(id, originEl) {
 
 async function saveDetail(quiet = false) {
   if (!current) return;
-  const review = els.dReview.value.trim();
-  current = await saveRecord({ ...current, rating: draftRating, review, reviewedAt: Date.now() });
+  current = await saveRecord({ ...current, rating: draftRating, review: els.dReview.value.trim(), reviewedAt: Date.now() });
   render();
   els.saved.textContent = quiet ? 'Saved' : 'Review saved';
 }
@@ -287,10 +371,21 @@ els.status.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-status]');
   if (!b || !current) return;
   const status = current.status === b.dataset.status ? '' : b.dataset.status;
-  current = await saveRecord({ ...current, status });
+  current = await saveRecord({ ...current, status, readingAt: status === 'reading' ? Date.now() : current.readingAt });
   renderStatus();
   render();
 });
+
+async function savePages() {
+  if (!current) return;
+  const pages = Math.max(0, parseInt(els.dPages.value, 10) || 0) || null;
+  const page = Math.max(0, parseInt(els.dPage.value, 10) || 0);
+  current = await saveRecord({ ...current, pages, page: pages ? Math.min(page, pages) : page });
+  renderStatus();
+  render();
+}
+els.dPage.addEventListener('change', savePages);
+els.dPages.addEventListener('change', savePages);
 
 async function deleteCurrent() {
   if (!current) return;
@@ -300,7 +395,7 @@ async function deleteCurrent() {
   current = null;
   els.detail.close();
   render();
-  toast('Removed from your library.');
+  toast('Removed from your library');
 }
 
 function recoverCover() {
@@ -308,12 +403,12 @@ function recoverCover() {
   const book = current;
   els.detail.close();
   scan.open({
-    onPhoto: async (dataUrl, ratio) => {
+    onPhoto: async (dataUrl) => {
       scan.close();
-      await saveRecord({ ...books.find((b) => b.id === book.id), cover: dataUrl, coverRatio: ratio, spine: undefined });
+      await saveRecord({ ...books.find((b) => b.id === book.id), cover: dataUrl });
       render();
       openDetail(book.id);
-      toast('Cover updated.');
+      toast('Cover updated');
     },
   });
 }
@@ -321,7 +416,7 @@ function recoverCover() {
 // ---------- Backup ----------
 
 function exportLibrary() {
-  const blob = new Blob([JSON.stringify({ app: 'bbs-books', version: 2, books }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'bbs-books', version: 3, books }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `bbs-books-${new Date().toISOString().slice(0, 10)}.json`;
@@ -337,25 +432,45 @@ async function importLibrary(file) {
     if (!confirm(`Replace your library with the ${list.length} books in this backup?`)) return;
     await db.replaceAll(list);
     await load();
-    toast(`Restored ${list.length} books.`);
+    toast(`Restored ${fmt(list.length)} ${plural(list.length, 'book')}`);
   } catch {
-    toast('That file isn’t a BB’s Books backup.');
+    toast('That file isn’t a BB’s Books backup');
   }
 }
 
 // ---------- Wiring ----------
 
+// The same washes sit behind the app and behind the book page.
+const washes = $('#washTemplate').content;
+document.body.prepend(washes.cloneNode(true));
+els.detail.prepend(washes.cloneNode(true));
 hydrateIcons();
 scan.init({ findDuplicate, saveBook, placeIncoming, landed, openDetail, toast });
 
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]');
+  if (go) showScreen(go.dataset.go);
+});
 els.scanBtn.addEventListener('click', () => scan.open());
-els.viewToggle.addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); });
-els.search.addEventListener('input', () => render());
-els.filter.addEventListener('change', () => render());
-els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); render(); });
+els.readingCard.addEventListener('click', () => openDetail(els.readingCard.dataset.id, els.readingCard.querySelector('.cover')));
+
+$('[data-screen="home"] .chips').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-filter]');
+  if (!c) return;
+  homeFilter = c.dataset.filter;
+  setFilter(e.currentTarget, homeFilter);
+  renderHome();
+});
+$('[data-screen="library"] .chips').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-filter]');
+  if (!c) return;
+  libraryFilter = c.dataset.filter;
+  setFilter(e.currentTarget, libraryFilter);
+  renderLibrary();
+});
+els.search.addEventListener('input', renderLibrary);
+els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); renderLibrary(); });
 els.sort.value = pref('bbs-sort') || 'added';
-view = pref('bbs-view') === 'shelf' ? 'shelf' : 'grid';
-els.viewToggle.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
 
 els.detail.querySelector('[data-close]').addEventListener('click', () => els.detail.close());
 els.saveBtn.addEventListener('click', () => saveDetail(false));
@@ -364,18 +479,11 @@ els.recoverBtn.addEventListener('click', recoverCover);
 els.dReview.addEventListener('input', () => { els.saved.textContent = 'Not saved yet'; });
 els.detail.addEventListener('close', () => {
   // Never lose a half-written review because she closed the book without tapping Save.
-  if (current && els.dReview.value.trim() !== (current.review || '')) saveDetail(true).then(() => toast('Review saved.'));
+  if (current && els.dReview.value.trim() !== (current.review || '')) saveDetail(true).then(() => toast('Review saved'));
 });
 
-els.menuBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  els.menu.hidden = !els.menu.hidden;
-  els.menuBtn.setAttribute('aria-expanded', String(!els.menu.hidden));
-});
-document.addEventListener('click', (e) => { if (!els.menu.contains(e.target)) { els.menu.hidden = true; els.menuBtn.setAttribute('aria-expanded', 'false'); } });
-els.menu.querySelector('[data-action="export"]').addEventListener('click', () => { els.menu.hidden = true; exportLibrary(); });
+els.exportBtn.addEventListener('click', exportLibrary);
 els.importFile.addEventListener('change', () => {
-  els.menu.hidden = true;
   if (els.importFile.files[0]) importLibrary(els.importFile.files[0]);
   els.importFile.value = '';
 });

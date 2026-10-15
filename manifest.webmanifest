@@ -1,13 +1,13 @@
 {
   "name": "BB's Books",
   "short_name": "BB's Books",
-  "description": "A personal library for every book BB owns.",
+  "description": "Scan a book and it lands in BB's virtual library.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F1E9DC",
-  "theme_color": "#F1E9DC",
+  "background_color": "#FFF6F3",
+  "theme_color": "#FFFFFF",
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
