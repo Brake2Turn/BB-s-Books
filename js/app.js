@@ -14,16 +14,14 @@ const els = {
   screens: $$('.screen'),
   tabs: $$('.tabbar .tab'),
   readingCard: $('#readingCard'),
-  filterChips: $('.filter-chips'),
+  filterRow: $('.filter-row'),
+  statusFilter: $('#statusFilter'),
   libraryShelves: $('#libraryShelves'),
-  libraryCount: $('#libraryCount'),
   search: $('#search'),
   sort: $('#sort'),
   genreFilter: $('#genreFilter'),
   genreWrap: $('#genreWrap'),
   dGenre: $('#dGenre'),
-  finishedCount: $('#finishedCount'),
-  finishedUnit: $('#finishedUnit'),
   statsCard: $('#statsCard'),
   scanBtn: $('#scanBtn'),
   detail: $('#detail'),
@@ -48,6 +46,9 @@ const els = {
   deleteBtn: $('#deleteBtn'),
   exportBtn: $('#exportBtn'),
   importFile: $('#importFile'),
+  storageNote: $('#storageNote'),
+  backupNote: $('#backupNote'),
+  snapshotList: $('#snapshotList'),
   feedbackForm: $('#feedbackForm'),
   fbMessage: $('#fbMessage'),
   fbName: $('#fbName'),
@@ -105,6 +106,7 @@ function findDuplicate(book) {
 }
 
 async function saveRecord(book) {
+  book = { ...book, updatedAt: Date.now() }; // lets a restore keep whichever copy of a book is newer
   await db.put(book);
   books = books.some((b) => b.id === book.id) ? books.map((b) => (b.id === book.id ? book : b)) : [...books, book];
   return book;
@@ -211,8 +213,8 @@ function renderGenreFilter() {
 function renderHome() {
   renderReadingCard();
   // Without the reading card the chips move up onto the white zone, where glass reads grey: use tint there.
-  els.filterChips.classList.toggle('glass-chips', !els.readingCard.hidden);
-  els.filterChips.classList.toggle('tint-chips', els.readingCard.hidden);
+  els.filterRow.classList.toggle('glass-chips', !els.readingCard.hidden);
+  els.filterRow.classList.toggle('tint-chips', els.readingCard.hidden);
   renderGenreFilter();
 
   const q = normalise(els.search.value);
@@ -228,9 +230,25 @@ function renderHome() {
     .filter((b) => !q || normalise(`${b.title} ${authorLine(b)}`).includes(q))
     .sort(cmp);
   const total = books.length;
-  els.libraryCount.textContent = list.length === total ? `${fmt(total)} ${plural(total, 'book')}` : `${fmt(list.length)} of ${fmt(total)} books`;
   const empty = !total ? 'Scan a book to start this shelf' : q ? 'Nothing matches that search' : 'Nothing here yet';
   els.libraryShelves.replaceChildren(...shelves(list, empty));
+  sizeSelects();
+}
+
+const measurer = document.createElement('canvas').getContext('2d');
+
+/**
+ * A <select> is as wide as its longest option; size each filter pill to the option
+ * showing instead, so the row stays compact. The chosen pill is marked "active".
+ */
+function sizeSelects() {
+  els.filterRow.querySelectorAll('select').forEach((sel) => {
+    const cs = getComputedStyle(sel);
+    measurer.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const text = sel.options[sel.selectedIndex]?.text || '';
+    sel.style.width = `${Math.ceil(measurer.measureText(text).width) + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2}px`;
+    sel.classList.toggle('active', sel.selectedIndex > 0 && sel.id !== 'sort');
+  });
 }
 
 /** Most common genre among finished books (or all books, if none are finished yet). */
@@ -243,21 +261,21 @@ function favouriteGenre() {
 
 function renderStats() {
   const finished = books.filter((b) => b.status === 'read');
-  els.finishedCount.textContent = fmt(finished.length);
-  els.finishedUnit.textContent = 'finished';
   const count = (s) => books.filter((b) => b.status === s).length;
   const pagesRead = finished.reduce((t, b) => t + (Number(b.pages) || 0), 0)
     + books.filter((b) => b.status === 'reading').reduce((t, b) => t + (Number(b.page) || 0), 0);
   const rated = books.filter((b) => b.rating);
   const avg = rated.length ? (rated.reduce((t, b) => t + b.rating, 0) / rated.length).toFixed(1) : null;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  // Short labels and values, so every row fits on one line.
   const rows = [
+    ['Finished', fmt(finished.length)],
     ['Reading', fmt(count('reading'))],
     ['Want to read', fmt(count('want'))],
     ['Pages read', fmt(pagesRead)],
-    ['Average rating', avg ? `${avg} of 5` : 'No ratings yet'],
-    ['Added this month', fmt(books.filter((b) => b.addedAt >= monthStart).length)],
-    ['Favourite genre', favouriteGenre() || 'Not enough books yet'],
+    ['Average rating', avg ? `${avg} of 5` : 'None yet'],
+    ['This month', `${fmt(books.filter((b) => b.addedAt >= monthStart).length)} added`],
+    ['Top genre', favouriteGenre() || 'None yet'],
   ];
   els.statsCard.replaceChildren(...rows.map(([label, value]) => {
     const row = document.createElement('div');
@@ -275,10 +293,7 @@ function render() {
   renderCounts();
   if (screen === 'home') renderHome();
   if (screen === 'stats') renderStats();
-}
-
-function setFilter(group, value) {
-  group.querySelectorAll('[data-filter]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.filter === value)));
+  if (screen === 'profile') renderProfile();
 }
 
 async function load() {
@@ -287,8 +302,116 @@ async function load() {
     await db.replaceAll(sampleBooks());
     books = await db.getAll();
   }
+  await protectLibrary();
   render();
   fillMissingGenres();
+}
+
+// ---------- Keeping her library safe ----------
+
+// Bump when the shape of a book record changes. Older records are upgraded in normaliseBook,
+// after a safety copy of the library is taken.
+const DATA_VERSION = 3;
+const KEEP_SNAPSHOTS = 5; // each copy includes any cover photos, so keep a few, not dozens
+
+/**
+ * Bring an older record up to date. Additive only: fills in fields that are missing and
+ * keeps everything else exactly as it was, including fields this version doesn't know about.
+ */
+function normaliseBook(b) {
+  return {
+    authors: [],
+    blurb: '',
+    cover: '',
+    isbn: '',
+    publisher: '',
+    published: '',
+    pages: null,
+    page: 0,
+    status: '',
+    rating: 0,
+    review: '',
+    ...b,
+    addedAt: b.addedAt || Date.now(),
+  };
+}
+
+/**
+ * Runs on every launch, before anything is shown:
+ * 1. after an app update that changes the data's shape, save a copy first, then upgrade records;
+ * 2. save one automatic copy a day; keep the newest few;
+ * 3. ask the browser to protect the library from automatic clean-up.
+ * A failure here must never stop the library from opening.
+ */
+async function protectLibrary() {
+  try {
+    const stored = await db.getMeta('dataVersion', 0);
+    if (stored < DATA_VERSION) {
+      if (books.length) await db.saveSnapshot(books, 'Before an app update');
+      const upgraded = books.map(normaliseBook);
+      const changed = upgraded.filter((b, i) => JSON.stringify(b) !== JSON.stringify(books[i]));
+      if (changed.length) await db.putMany(changed);
+      books = upgraded;
+      await db.setMeta('dataVersion', DATA_VERSION);
+    }
+    // A daily copy, but only when something has changed since the last one.
+    const latest = (await db.listSnapshots())[0];
+    const sig = librarySignature(books);
+    if (books.length && (!latest || (Date.now() - latest.at > 20 * 3600 * 1000 && librarySignature(latest.books) !== sig))) {
+      await db.saveSnapshot(books, 'Daily copy');
+    }
+    await db.pruneSnapshots(KEEP_SNAPSHOTS);
+  } catch (err) {
+    console.warn('Library safety step skipped', err);
+  }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+}
+
+/** A cheap fingerprint of the library: changes whenever a book is added, removed or edited. */
+const librarySignature = (list) => `${list.length}:${Math.max(0, ...list.map((b) => b.updatedAt || b.addedAt || 0))}`;
+
+const dateLabel = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  + (new Date(t).toDateString() === new Date().toDateString() ? `, ${new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '');
+
+async function renderProfile() {
+  const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  els.storageNote.textContent = persisted
+    ? 'Saved on this phone and protected, so the browser won’t clear it to save space.'
+    : installed
+      ? 'Saved on this phone. Back it up now and then to keep a copy somewhere else.'
+      : 'Saved in this browser. Add the app to your home screen so it’s never cleared.';
+  const last = await db.getMeta('lastBackup', 0).catch(() => 0);
+  els.backupNote.textContent = last ? `Last backup: ${dateLabel(last)}` : 'Not backed up yet';
+
+  const copies = await db.listSnapshots().catch(() => []);
+  els.snapshotList.replaceChildren(...(copies.length ? copies.map((c) => {
+    const row = document.createElement('div');
+    row.className = 'snapshot';
+    const label = document.createElement('span');
+    label.textContent = `${dateLabel(c.at)} `;
+    const small = document.createElement('small');
+    small.textContent = `· ${fmt(c.count)} ${plural(c.count, 'book')}`;
+    label.append(small);
+    const btn = document.createElement('button');
+    btn.className = 'text-btn';
+    btn.textContent = 'Restore';
+    btn.setAttribute('aria-label', `Restore the copy from ${dateLabel(c.at)}`);
+    btn.addEventListener('click', () => restoreSnapshot(c));
+    row.append(label, btn);
+    return row;
+  }) : [Object.assign(document.createElement('p'), { className: 'caption', textContent: 'The first copy is saved once you add a book.' })]));
+}
+
+async function restoreSnapshot(copy) {
+  if (!confirm(`Go back to your library as it was on ${dateLabel(copy.at)} (${copy.count} ${plural(copy.count, 'book')})? Today’s library is saved as a copy first.`)) return;
+  if (books.length) await db.saveSnapshot(books, 'Before a restore');
+  await db.replaceAll(copy.books);
+  await db.pruneSnapshots(KEEP_SNAPSHOTS + 1);
+  books = await db.getAll();
+  render();
+  renderProfile();
+  toast('Library restored');
 }
 
 /**
@@ -338,7 +461,7 @@ function placeIncoming(id) {
   filter = '';
   genre = '';
   els.search.value = '';
-  setFilter(els.filterChips, '');
+  els.statusFilter.value = '';
   if (screen !== 'home') showScreen('home');
   render();
   const tile = els.libraryShelves.querySelector(`[data-id="${id}"]`);
@@ -515,27 +638,70 @@ function photographCover(id) {
 
 // ---------- Backup ----------
 
-function exportLibrary() {
-  const blob = new Blob([JSON.stringify({ app: 'bbs-books', version: 3, books }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `bbs-books-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+/**
+ * Save the whole library to a file. On phones this opens the share sheet, so the backup can
+ * go to iCloud Drive or Google Drive, Files, email or AirDrop; elsewhere it downloads.
+ */
+async function exportLibrary() {
+  const json = JSON.stringify({ app: 'bbs-books', version: DATA_VERSION, exportedAt: new Date().toISOString(), books }, null, 2);
+  const name = `bbs-books-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([json], name, { type: 'application/json' });
+  let saved = false;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'BB’s Books backup' });
+      saved = true;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // she closed the share sheet
+    }
+  }
+  if (!saved) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  await db.setMeta('lastBackup', Date.now());
+  renderProfile();
+  toast('Backup saved');
 }
 
+/** When a backup and the library both have a book, keep the copy that was changed last. */
+const lastTouched = (b) => b.updatedAt || b.reviewedAt || b.addedAt || 0;
+
+/**
+ * Add the books from a backup file to the library. Nothing is deleted: books only in the
+ * library stay, books only in the backup are added, and where both have a book (same ID,
+ * ISBN or title and author) the more recently changed copy wins.
+ */
 async function importLibrary(file) {
+  let list;
   try {
     const data = JSON.parse(await file.text());
-    const list = Array.isArray(data) ? data : data.books;
-    if (!Array.isArray(list) || list.some((b) => !b.id || !b.title)) throw new Error('bad file');
-    if (!confirm(`Replace your library with the ${list.length} books in this backup?`)) return;
-    await db.replaceAll(list);
-    await load();
-    toast(`Restored ${fmt(list.length)} ${plural(list.length, 'book')}`);
+    list = Array.isArray(data) ? data : data.books;
+    if (!Array.isArray(list) || list.some((b) => !b || !b.id || !b.title)) throw new Error('bad file');
   } catch {
     toast('That file isn’t a BB’s Books backup');
+    return;
   }
+  const incoming = list.map(normaliseBook);
+  const updates = [];
+  let added = 0;
+  for (const b of incoming) {
+    const mine = books.find((x) => x.id === b.id) || findDuplicate(b);
+    if (!mine) { updates.push(b); added++; } else if (lastTouched(b) > lastTouched(mine)) updates.push({ ...b, id: mine.id });
+  }
+  if (!updates.length) { toast('Everything in that backup is already here'); return; }
+  const changed = updates.length - added;
+  const parts = [added && `add ${added} ${plural(added, 'book')}`, changed && `update ${changed}`].filter(Boolean).join(' and ');
+  if (!confirm(`This will ${parts}. Nothing in your library is removed. Go ahead?`)) return;
+  if (books.length) await db.saveSnapshot(books, 'Before a restore');
+  await db.putMany(updates);
+  books = await db.getAll();
+  render();
+  renderProfile();
+  toast(added ? `Added ${fmt(added)} ${plural(added, 'book')}` : 'Library updated');
 }
 
 // ---------- Feedback ----------
@@ -657,13 +823,7 @@ document.addEventListener('click', (e) => {
 els.scanBtn.addEventListener('click', () => scan.open());
 els.readingCard.addEventListener('click', () => openDetail(els.readingCard.dataset.id, els.readingCard.querySelector('.cover')));
 
-els.filterChips.addEventListener('click', (e) => {
-  const c = e.target.closest('[data-filter]');
-  if (!c) return;
-  filter = c.dataset.filter;
-  setFilter(els.filterChips, filter);
-  renderHome();
-});
+els.statusFilter.addEventListener('change', () => { filter = els.statusFilter.value; renderHome(); });
 els.search.addEventListener('input', renderHome);
 els.sort.addEventListener('change', () => { pref('bbs-sort', els.sort.value); renderHome(); });
 els.sort.value = pref('bbs-sort') || 'added';
@@ -691,7 +851,5 @@ els.importFile.addEventListener('change', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Offline mode unavailable', err));
 }
-// Ask the browser not to clear her library to free up space.
-if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 load();

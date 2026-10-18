@@ -20,7 +20,8 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | **Stats** | Books finished, pages read, average rating and more. |
 | **Feedback** | A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
 | **Book page** | Large cover, blurb, Want to read / Reading / Finished, page progress, 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
-| **Back up / Restore** | On the Profile tab: saves the whole library, reviews included, to a file, and loads it back in. Use it before switching phones. |
+| **Back up / Restore** | On the Profile tab. **Back up library** opens the share sheet, so the file can go to iCloud Drive, Google Drive, Files, email or AirDrop (computers download it). **Add books from a backup** merges: it adds missing books and updates older copies, and never deletes anything. |
+| **Automatic copies** | The app keeps up to five copies of the whole library: one a day when something has changed, plus one before any app update that changes the data and before any restore. Any copy can be restored from Profile. |
 | **Offline** | Once opened, the app and the covers she's already seen keep working without signal. Looking up new books needs internet. |
 
 ## Putting it on her phone
@@ -42,7 +43,7 @@ Then on her phone:
 
 Open it from the home-screen icon and allow camera access when asked.
 
-> **Good to know:** the library lives in the phone's browser storage. Deleting the app or clearing Safari/Chrome website data deletes the library too, so back it up from the Profile tab now and then.
+> **Good to know:** app updates never touch the library: they replace the app's code, and the library is stored separately on the phone. To keep it safe, install the app to the home screen (Safari can clear websites that aren't installed after weeks without a visit) and keep it at this same address. The library lives in the phone's browser storage. Deleting the app or clearing Safari/Chrome website data deletes the library too, so back it up from the Profile tab now and then.
 
 ## Feedback emails
 

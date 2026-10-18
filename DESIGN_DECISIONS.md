@@ -34,6 +34,16 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - A tap sends a soft white wave and three white rings (tokens `--ripple`, `--ripple-soft`, `--ripple-edge`) out from her finger. The screen melts away over about a second to show the library.
   - Enter or Space also opens it. Reduce Motion gives a plain fade.
 
+- **One-style title.** "BB's Books" is Fraunces 36/42 at 500 throughout. The guide's italic "Books" was dropped at the owner's request, for a more standard title.
+- **Count beside the title.** On Home and Profile the book count sits on the title's row, right-aligned and baseline-aligned: number in Fraunces 36 light, "books" in Fraunces 17 `--ink-2`. It replaces the big HeroCount, which freed up the top of the screen.
+- **Filter dropdowns instead of chips.** Home's Reading / Want to read / Finished chips became one row of three pill dropdowns: status ("All books"), genre ("All genres") and sort ("Newest", "Title", "Author", "Rating").
+  - They are styled exactly like the chips they replace: glass over the washes, tint kit on white, switching with the reading card.
+  - A pill set to anything but its default takes the selected-chip look.
+  - Each pill is sized to its current label rather than its longest option.
+  - The "14 books" caption under the filters was removed.
+- **Stats without the hero.** "Finished" is a normal row now. Labels and values are kept short ("This month: 3 added", "Top genre: Classics", "None yet") and never wrap. A very long value shortens with an ellipsis rather than spilling onto a second line.
+- **Profile data card.** It shows whether the library is protected from browser clean-up, the last backup date, and a list of automatic copies with a Restore button each, in the existing glass-card and row styles.
+
 ## Components the guide doesn't specify
 
 - **Primary button** (Add to library, Save review): built like the scan button. Cobalt pill, 52px tall, white 60% border, `--shadow-scan`, Nunito Sans 14/700. It is the screen's one cobalt action, as the guide asks.

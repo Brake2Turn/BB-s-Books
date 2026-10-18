@@ -193,7 +193,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   font-weight: 500;
   letter-spacing: -0.02em;
 }
-.app-title i { font-weight: 400; }
+.app-title { white-space: nowrap; }
+/* The library count sits on the title's row, on the right, on the title's baseline. */
+.app-header:has(.header-count) { align-items: baseline; gap: 12px; }
+.header-count { display: flex; align-items: baseline; gap: 6px; flex: none; }
+.header-count b { font-family: var(--font-display); font-size: 36px; line-height: 42px; font-weight: 300; letter-spacing: -0.03em; }
+.header-count span { font-family: var(--font-display); font-size: 17px; line-height: 22px; font-weight: 400; color: var(--ink-2); }
 .round-btn {
   display: grid;
   place-items: center;
@@ -288,8 +293,27 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 /* FilterChips */
 .chips { display: flex; gap: var(--chip-gap); flex-wrap: wrap; }
 /* Four filters: one scrolling row rather than a wrapped second line */
-.filter-chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter); scrollbar-width: none; }
-.filter-chips::-webkit-scrollbar { display: none; }
+.filter-row { display: flex; gap: var(--chip-gap); flex-wrap: nowrap; overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter); scrollbar-width: none; }
+.filter-row::-webkit-scrollbar { display: none; }
+/* Filter pills: a chip that opens a menu. Glass over the washes, tint kit on white, like the chips they replace. */
+.pill-select { position: relative; display: inline-flex; align-items: center; flex: none; }
+.pill-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--size-chip);
+  padding: 0 32px 0 var(--chip-pad);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.pill-select .icon { position: absolute; right: 11px; width: 16px; height: 16px; pointer-events: none; color: var(--ink-2); }
+.glass-chips .pill-select select { background: var(--glass-chip-off); border: 1px solid var(--glass-chip-off-border); box-shadow: var(--shadow-chip-off); color: var(--ink-2); -webkit-backdrop-filter: blur(var(--blur-chip)) saturate(1.6); backdrop-filter: blur(var(--blur-chip)) saturate(1.6); }
+.glass-chips .pill-select select.active { background: var(--glass-chip-on); border-color: var(--glass-chip-on-border); box-shadow: var(--shadow-chip-on); color: var(--ink); }
+.tint-chips .pill-select select { background: var(--white); border: 1px solid var(--outline); color: var(--ink-2); }
+.tint-chips .pill-select select.active { background: var(--tint); border-color: var(--tint); color: var(--accent); }
+.tint-chips .pill-select:has(select.active) .icon { color: var(--accent); }
 .chip {
   display: inline-flex;
   align-items: center;
@@ -373,8 +397,6 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .field .icon { width: 18px; height: 18px; }
 .field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--ink); font-size: 16px; font-weight: 600; }
 .field input::placeholder { color: var(--ink-2); font-weight: 600; }
-.library-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.meta-controls { display: flex; align-items: center; gap: 16px; min-width: 0; }
 /* Genre on the book page: a tint chip that opens the genre list */
 .detail-genre { display: flex; justify-content: center; margin-top: 12px; }
 .genre-pick { position: relative; display: inline-flex; align-items: center; color: var(--accent); }
@@ -394,9 +416,6 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .genre-pick select.unset { background: var(--white); border-color: var(--outline); color: var(--ink-2); }
 .genre-pick:has(select.unset) { color: var(--ink-2); }
 .genre-pick .icon { position: absolute; right: 12px; width: 16px; height: 16px; pointer-events: none; }
-.sort { position: relative; display: inline-flex; align-items: center; color: var(--ink-2); }
-.sort select { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 10px 24px 10px 0; font-size: 12px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
-.sort .icon { position: absolute; right: 0; width: 16px; height: 16px; pointer-events: none; }
 
 /* Feedback */
 .feedback-card { gap: 10px; }
@@ -418,10 +437,11 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
 /* Stats + Profile */
 .stat-list { gap: 0; padding-top: 4px; padding-bottom: 4px; }
-.stat { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 0; }
+.stat { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 0; white-space: nowrap; }
 .stat + .stat { border-top: 1px solid rgba(255, 255, 255, 0.75); }
-.stat span { font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.stat b { font-family: var(--font-display); font-size: 21px; line-height: 1.15; font-weight: 400; }
+.stat span { flex: none; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+/* One line per row: a long value (a genre name) shrinks a little, then ellipsises, rather than wrapping. */
+.stat b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-display); font-size: 21px; line-height: 1.15; font-weight: 400; }
 .list-card { gap: 12px; }
 .row-btn {
   display: flex;
@@ -437,6 +457,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
 }
 .row-btn .icon { color: var(--ink-2); }
+.snapshot-list { display: flex; flex-direction: column; }
+.snapshot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; white-space: nowrap; }
+.snapshot + .snapshot { border-top: 1px solid var(--glass-card-border); }
+.snapshot span { overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 700; color: var(--ink); }
+.snapshot span small { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.snapshot .text-btn { flex: none; color: var(--ink); }
 
 /* ---------- TabBar ---------- */
 .tabbar {

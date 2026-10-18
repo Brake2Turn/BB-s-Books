@@ -41,9 +41,9 @@
     <section class="screen" data-screen="home" aria-label="Home">
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
-        <h1 class="app-title">BB's <i>Books</i></h1>
+        <h1 class="app-title">BB's Books</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
       </header>
-      <p class="hero-count"><b data-count></b><span data-count-unit></span></p>
       <div class="stack">
         <button id="readingCard" class="reading-card" hidden>
           <span class="rc-cover"></span>
@@ -59,31 +59,33 @@
           <i data-icon="search"></i>
           <input id="search" type="search" placeholder="Search by title or author" autocomplete="off" aria-label="Search your library">
         </label>
-        <div class="chips glass-chips filter-chips" role="group" aria-label="Show">
-          <button class="chip" data-filter="" aria-pressed="true">All</button>
-          <button class="chip" data-filter="reading" aria-pressed="false">Reading</button>
-          <button class="chip" data-filter="want" aria-pressed="false">Want to read</button>
-          <button class="chip" data-filter="read" aria-pressed="false">Finished</button>
-        </div>
-        <div class="library-meta">
-          <span id="libraryCount" class="caption"></span>
-          <span class="meta-controls">
-          <label class="sort" id="genreWrap" hidden>
+        <!-- One compact row of dropdowns in place of the filter bubbles -->
+        <div class="filter-row glass-chips">
+          <label class="pill-select">
+            <span class="visually-hidden">Show</span>
+            <select id="statusFilter">
+              <option value="">All books</option>
+              <option value="reading">Reading</option>
+              <option value="want">Want to read</option>
+              <option value="read">Finished</option>
+            </select>
+            <i data-icon="chevron"></i>
+          </label>
+          <label class="pill-select" id="genreWrap" hidden>
             <span class="visually-hidden">Genre</span>
             <select id="genreFilter"></select>
             <i data-icon="chevron"></i>
           </label>
-          <label class="sort">
+          <label class="pill-select">
             <span class="visually-hidden">Sort</span>
             <select id="sort">
-              <option value="added">Recently added</option>
+              <option value="added">Newest</option>
               <option value="title">Title</option>
               <option value="author">Author</option>
-              <option value="rating">Your rating</option>
+              <option value="rating">Rating</option>
             </select>
             <i data-icon="chevron"></i>
           </label>
-          </span>
         </div>
         <div id="libraryShelves" class="shelves"></div>
       </div>
@@ -95,7 +97,6 @@
       <header class="app-header">
         <h1 class="app-title">Stats</h1>
       </header>
-      <p class="hero-count"><b id="finishedCount"></b><span id="finishedUnit"></span></p>
       <div class="stack">
         <div id="statsCard" class="glass-card stat-list"></div>
       </div>
@@ -127,14 +128,20 @@
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
         <h1 class="app-title">Profile</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
       </header>
-      <p class="hero-count"><b data-count></b><span data-count-unit></span></p>
       <div class="stack">
         <div class="glass-card list-card">
           <p class="eyebrow"><i></i>Your library</p>
-          <p class="body-text">Everything is saved on this phone. Back it up now and then, and before you switch phones.</p>
+          <p id="storageNote" class="body-text"></p>
+          <p id="backupNote" class="caption"></p>
           <button id="exportBtn" class="row-btn"><i data-icon="download"></i>Back up library</button>
-          <label class="row-btn"><i data-icon="upload"></i>Restore from backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+          <label class="row-btn"><i data-icon="upload"></i>Add books from a backup<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+        </div>
+        <div class="glass-card list-card">
+          <p class="eyebrow"><i></i>Automatic copies</p>
+          <p class="body-text">Saved each day, and before updates and restores.</p>
+          <div id="snapshotList" class="snapshot-list"></div>
         </div>
       </div>
     </section>
