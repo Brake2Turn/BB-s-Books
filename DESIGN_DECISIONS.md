@@ -47,8 +47,10 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 - **Milestones in gold.** The 1st, 5th, 10th, 25th, 50th and 100th book, then every 100th, get their own celebration:
   - Gold confetti with glinting pieces, plus the corner cannons, instead of the colourful burst.
   - An "A milestone" eyebrow with a gold dot.
-  - A headline sentence in gold with a slow shimmer: "Your very first book", "Five books on the shelf", "Ten books and counting", "Twenty-five books strong", "Fifty books, half a century", "One hundred books", then "Two hundred books" and so on.
-  - The gold text runs between `--gold-text` (#7A5A12) and `--gold-text-light` (#9A6F0B), which keeps at least 3:1 on every wash at 36px. The confetti golds (`--gold-light`, `--gold`, `--gold-mid`, `--gold-deep`) are decoration only.
+  - A headline sentence in bright gold that shimmers when it appears: "Your very first book", "Five books on the shelf", "Ten books and counting", "Twenty-five books strong", "Fifty books, half a century", "One hundred books", then "Two hundred books" and so on.
+  - The owner asked for a brighter gold. The headline is `--gold-text-bright` (#CB9417), edged with a fine 0.6px stroke of the dark `--gold-text` (#7A5A12) plus a soft drop shadow and glow. The edge carries legibility: the bright gold alone is below 3:1 on the pinkest washes.
+  - When the words appear, a band of light (`--gold-sheen`, `--gold-sheen-peak`) sweeps across once straight away, then again every 3.6 seconds while the screen is up. Reduce Motion stops the sweep.
+  - The confetti golds (`--gold-light`, `--gold`, `--gold-mid`, `--gold-deep`) are decoration only.
   - Gold is used nowhere else in the app.
 - **Celebration waits for a tap.** It no longer moves on by itself. "Tap to continue" stays until she taps (or presses Enter or Space). Taps in the first 0.7 seconds are ignored, so the tap that added the book can't skip it. The tap plays the same ripple as the start-up screen (`js/ripple.js`) while the cover flies to its shelf.
 

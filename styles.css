@@ -101,8 +101,13 @@
   --ripple-soft: rgba(255, 255, 255, 0.4);
   --ripple-edge: rgba(47, 91, 217, 0.35);       /* a touch of cobalt so rings read on pale washes */
   /* Gold, for milestone celebrations only (see DESIGN_DECISIONS.md). Text golds keep 3:1 on every wash at 36px. */
-  --gold-text: #7A5A12;
+  --gold-text: #7A5A12;        /* darkest gold: the fine edge that keeps bright gold text readable */
   --gold-text-light: #9A6F0B;
+  --gold-text-bright: #CB9417;  /* the headline's main gold: brighter, edged with --gold-text */
+  --gold-sheen: #FFF4CC;
+  --gold-sheen-peak: #FFFDF2;    /* the brightest point of the sweep */        /* the shine that sweeps across the headline */
+  --gold-edge: rgba(122, 90, 18, 0.35);
+  --gold-glow: rgba(242, 201, 76, 0.45);
   --gold-light: #FFE7A0;
   --gold: #F2C94C;
   --gold-mid: #E0A82E;
@@ -761,15 +766,28 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .scanner .ripple { z-index: 45; }
 /* Milestones: a gold headline with a slow shimmer, and a gold eyebrow dot */
 .celebrate-text.milestone .celebrate-big {
-  background: linear-gradient(100deg, var(--gold-text) 0%, var(--gold-text-light) 45%, var(--gold-text) 55%, var(--gold-text-light) 100%);
-  background-size: 220% 100%;
+  /* Bright gold with a band of light parked off to the left, ready to sweep across. */
+  background: linear-gradient(100deg,
+    var(--gold-text-light) 0%, var(--gold-text-bright) 30%,
+    var(--gold-text-bright) 36%, var(--gold) 42%, var(--gold-sheen) 46%, var(--gold-sheen-peak) 50%, var(--gold-sheen) 54%, var(--gold) 58%, var(--gold-text-bright) 64%,
+    var(--gold-text-bright) 70%, var(--gold-text-light) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gold-shimmer 3.2s ease-in-out infinite;
+  /* A fine darker-gold edge and a soft glow keep the brighter gold legible on pale washes. */
+  -webkit-text-stroke: 0.6px var(--gold-text);
+  filter: drop-shadow(0 1px 0 var(--gold-edge)) drop-shadow(0 0 14px var(--gold-glow));
 }
-.celebrate-text.milestone .eyebrow i { background: var(--gold-deep); }
-@keyframes gold-shimmer { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
+/* The shimmer starts the moment the words appear: one sweep right away, then again every few seconds. */
+.celebrate-text.milestone.show .celebrate-big { animation: gold-sheen 3.6s cubic-bezier(.45, 0, .25, 1) .25s infinite; }
+.celebrate-text.milestone .eyebrow i { background: var(--gold-deep); box-shadow: 0 0 8px var(--gold); }
+@keyframes gold-sheen {
+  0% { background-position: 100% 0; }
+  38% { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}
 .flying .shine {
   position: absolute;
   inset: 0;
