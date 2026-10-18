@@ -48,7 +48,7 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - Gold confetti with glinting pieces, plus the corner cannons, instead of the colourful burst.
   - An "A milestone" eyebrow with a gold dot.
   - A headline sentence in bright gold that shimmers when it appears: "Your very first book", "Five books on the shelf", "Ten books and counting", "Twenty-five books strong", "Fifty books, half a century", "One hundred books", then "Two hundred books" and so on.
-  - The owner asked for a brighter gold. The headline is `--gold-text-bright` (#CB9417), edged with a fine 0.6px stroke of the dark `--gold-text` (#7A5A12) plus a soft drop shadow and glow. The edge carries legibility: the bright gold alone is below 3:1 on the pinkest washes.
+  - The owner asked for a brighter gold with no hard outline. The headline is a gradient of `--gold-text-bright` (#C28C14) with darker `--gold-text-light` ends. A soft blurred warm shadow (`--gold-edge`) and a gentle glow (`--gold-glow`) lift it off the washes. Trade-off: the bright gold sits a little under 3:1 on the pinkest washes. The headline is 36px, and the shadow and nearby text keep it readable.
   - When the words appear, a band of light (`--gold-sheen`, `--gold-sheen-peak`) sweeps across once straight away, then again every 3.6 seconds while the screen is up. Reduce Motion stops the sweep.
   - The confetti golds (`--gold-light`, `--gold`, `--gold-mid`, `--gold-deep`) are decoration only.
   - Gold is used nowhere else in the app.

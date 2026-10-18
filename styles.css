@@ -101,12 +101,12 @@
   --ripple-soft: rgba(255, 255, 255, 0.4);
   --ripple-edge: rgba(47, 91, 217, 0.35);       /* a touch of cobalt so rings read on pale washes */
   /* Gold, for milestone celebrations only (see DESIGN_DECISIONS.md). Text golds keep 3:1 on every wash at 36px. */
-  --gold-text: #7A5A12;        /* darkest gold: the fine edge that keeps bright gold text readable */
+  --gold-text: #7A5A12;        /* darkest gold: the ends of the headline gradient */
   --gold-text-light: #9A6F0B;
-  --gold-text-bright: #CB9417;  /* the headline's main gold: brighter, edged with --gold-text */
+  --gold-text-bright: #C28C14;  /* the headline's main gold */
   --gold-sheen: #FFF4CC;
   --gold-sheen-peak: #FFFDF2;    /* the brightest point of the sweep */        /* the shine that sweeps across the headline */
-  --gold-edge: rgba(122, 90, 18, 0.35);
+  --gold-edge: rgba(122, 90, 18, 0.3); /* soft shadow under the gold headline (no hard outline) */
   --gold-glow: rgba(242, 201, 76, 0.45);
   --gold-light: #FFE7A0;
   --gold: #F2C94C;
@@ -776,9 +776,8 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  /* A fine darker-gold edge and a soft glow keep the brighter gold legible on pale washes. */
-  -webkit-text-stroke: 0.6px var(--gold-text);
-  filter: drop-shadow(0 1px 0 var(--gold-edge)) drop-shadow(0 0 14px var(--gold-glow));
+  /* No outline: a soft, blurred warm shadow lifts the gold off pale washes, plus a gentle glow. */
+  filter: drop-shadow(0 2px 5px var(--gold-edge)) drop-shadow(0 0 14px var(--gold-glow));
 }
 /* The shimmer starts the moment the words appear: one sweep right away, then again every few seconds. */
 .celebrate-text.milestone.show .celebrate-big { animation: gold-sheen 3.6s cubic-bezier(.45, 0, .25, 1) .25s infinite; }
