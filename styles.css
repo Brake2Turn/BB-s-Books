@@ -97,6 +97,10 @@
   --shadow-cover: 0 14px 22px -10px rgba(21, 20, 28, 0.4);
   --shadow-cover-sm: 0 14px 24px -12px rgba(21, 20, 28, 0.5);
   --shadow-ledge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 18px -8px rgba(47, 91, 217, 0.25);
+  --ripple: rgba(255, 255, 255, 0.9);          /* start-up ripple: white rings (see DESIGN_DECISIONS.md) */
+  --ripple-soft: rgba(255, 255, 255, 0.4);
+  --ripple-edge: rgba(47, 91, 217, 0.35);       /* a touch of cobalt so rings read on pale washes */
+  --shadow-ledge-plain: 0 6px 14px -8px rgba(21, 20, 28, 0.22); /* plain white ledges (owner's request, see DESIGN_DECISIONS.md) */
   --shadow-tabbar: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 24px 50px -12px rgba(47, 91, 217, 0.3);
   --shadow-scan: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 28px -6px rgba(47, 91, 217, 0.65);
 
@@ -318,11 +322,10 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   height: var(--size-ledge);
   margin-top: var(--ledge-gap);
   border-radius: var(--radius-ledge);
-  background: var(--glass-ledge);
-  border: 1px solid var(--glass-ledge-border);
-  box-shadow: var(--shadow-ledge);
-  -webkit-backdrop-filter: blur(var(--blur-ledge));
-  backdrop-filter: blur(var(--blur-ledge));
+  /* Plain white, not glass: the owner wanted the shelves without the blurred-wash texture. */
+  background: var(--white);
+  border: 1px solid var(--outline);
+  box-shadow: var(--shadow-ledge-plain);
 }
 .shelf-empty { padding-top: 8px; }
 .shelf-empty .caption { text-align: center; margin-bottom: var(--ledge-gap); }
@@ -805,6 +808,47 @@ textarea::placeholder { color: var(--ink-2); }
 textarea:focus { outline: 0; border-color: var(--tint-border); box-shadow: 0 0 0 3px var(--tint); }
 .review-actions { display: flex; align-items: center; gap: 16px; }
 .quiet-actions { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+
+/* ---------- Start-up screen ---------- */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg-base);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.splash:focus { outline: none; }
+.splash .washes { position: absolute; }
+.splash-content { position: relative; text-align: center; animation: splash-in .9s var(--ease) both; }
+/* The greeting takes the hero unit's style; "BB" takes the hero count's. */
+.splash-greeting { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 400; color: var(--ink-2); }
+.splash-name { margin-top: 4px; font-family: var(--font-display); font-size: 96px; line-height: 96px; font-weight: 300; letter-spacing: -0.03em; color: var(--ink); }
+.splash-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(48px + env(safe-area-inset-bottom));
+  text-align: center;
+  opacity: 0;
+  animation: splash-hint .6s var(--ease) 2.2s forwards;
+}
+@keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes splash-hint { to { opacity: .8; } }
+/* Ripple rings, drawn from the point she taps */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+}
+.ripple.wave { background: radial-gradient(circle, var(--ripple) 0, var(--ripple-soft) 55%, transparent 70%); }
+.ripple.ring { border: 4px solid var(--ripple); box-shadow: 0 0 0 1.5px var(--ripple-edge), inset 0 0 0 1.5px var(--ripple-edge), 0 0 24px var(--ripple-soft); }
 
 /* ---------- Toast ---------- */
 .toast {

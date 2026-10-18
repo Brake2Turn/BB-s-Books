@@ -577,10 +577,73 @@ async function sendFeedback(e) {
   }
 }
 
+// ---------- Start-up screen ----------
+
+/** "Good morning", "Good afternoon" or "Good evening" for the hour (late night counts as evening). */
+function greeting(hour = new Date().getHours()) {
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/**
+ * The greeting shown each time the app opens. There are no buttons: a tap anywhere sends
+ * ripples out from her finger while the screen melts away into the library.
+ */
+function initSplash() {
+  const splash = $('#splash');
+  splash.querySelector('.splash-greeting').textContent = greeting();
+  splash.prepend($('#washTemplate').content.cloneNode(true));
+  splash.focus({ preventScroll: true });
+  let opened = false;
+
+  const open = (x, y) => {
+    if (opened) return;
+    opened = true;
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (reduced()) {
+      splash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).finished.then(() => splash.remove());
+      return;
+    }
+    // Big enough to reach the farthest corner from where she tapped.
+    const reach = 2 * Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const ring = (cls, delay, duration) => {
+      const el = document.createElement('span');
+      el.className = `ripple ${cls}`;
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${reach}px`, height: `${reach}px` });
+      splash.append(el);
+      // Bright while it spreads, fading only at the end.
+      el.animate([
+        { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+        { transform: 'translate(-50%, -50%) scale(.55)', opacity: 0.95, offset: 0.55 },
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 0 },
+      ], { duration, delay, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'both' });
+    };
+    ring('wave', 0, 1000);
+    ring('ring', 0, 1150);
+    ring('ring', 160, 1150);
+    ring('ring', 320, 1150);
+    splash.querySelector('.splash-content').animate([
+      { transform: 'none', opacity: 1 },
+      { transform: 'scale(1.06)', opacity: 0 },
+    ], { duration: 460, easing: 'ease-in', fill: 'forwards' });
+    splash.querySelector('.splash-hint').remove();
+    // The ripples get half a second to spread before the screen melts into the library.
+    splash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 500, easing: 'ease-in-out', fill: 'forwards' })
+      .finished.then(() => splash.remove());
+  };
+
+  splash.addEventListener('click', (e) => open(e.clientX || innerWidth / 2, e.clientY || innerHeight / 2));
+  splash.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(innerWidth / 2, innerHeight / 2); }
+  });
+}
+
 // ---------- Wiring ----------
 
 // The same washes sit behind the app and behind the book page.
 const washes = $('#washTemplate').content;
+initSplash();
 document.body.prepend(washes.cloneNode(true));
 els.detail.prepend(washes.cloneNode(true));
 hydrateIcons();

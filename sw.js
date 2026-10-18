@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v7';
+const VERSION = 'v8';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 const MAX_COVERS = 400; // oldest covers are dropped beyond this, so the cache can't grow forever

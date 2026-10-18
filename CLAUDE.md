@@ -15,10 +15,11 @@ Rules that are easy to break:
 
 - **Tokens only.** Token names and values in the `:root` block of `styles.css` match `design/tokens.json` one-to-one. Add a token there (and note it in `DESIGN_DECISIONS.md`) rather than writing a raw value in a component.
 - **One accent.** Cobalt (`--accent`) is for the scan button, the one primary action on a screen, progress fills, dots and the profile icon. Never use it as small text on the washes.
-- **Glass vs. tint.** Glass goes over the washes. On the pure-white top zone, use the tint kit instead: tint chips, white fields with `--outline`, solid ledges. Home's chips switch automatically (`renderHome` in `js/app.js`).
+- **Glass vs. tint.** Glass goes over the washes. On the pure-white top zone, use the tint kit instead: tint chips and white fields with `--outline`. Home's chips switch automatically (`renderHome` in `js/app.js`).
+- **Shelf ledges are plain white**, not glass, at the owner's request: `--white`, `--outline` and `--shadow-ledge-plain`, no blur.
 - **Type.** Fraunces for what a reader would say out loud (app name, counts, book titles), never bold. Only the word "Books" in the app title is italic. Nunito Sans for everything else, 600 or heavier.
 - **Covers.** Always 2:3, `--radius-cover`, cropped, never letterboxed. Use the six placeholder pairs, chosen by book ID. No badges, ratings or labels on covers.
-- **Layout.** The wash background and white top zone sit behind every main screen. 20px gutters, a 3-column shelf grid with a ledge under each row, and the floating tab bar with Scan centred. The header has no profile button (the owner asked for it to be removed).
+- **Layout.** The wash background and white top zone sit behind every main screen. 20px gutters, a 3-column shelf grid with a ledge under each row, and the floating tab bar with Scan centred. The header has no profile button (the owner asked for it to be removed). The app opens on the start-up greeting (`initSplash` in `js/app.js`): keep it button-free.
 - **Celebration.** The add-to-library celebration is the one place the guide's "celebrate quietly" is deliberately exceeded, at the owner's request. Keep it to the guide's colours and voice, and don't add celebrations elsewhere.
 - **Voice.** Short, warm, plain. Use "Reading", "Want to read" and "Finished". No exclamation marks, no emoji. Sentence case, except eyebrows and cover authors.
 - **Accessibility.** AA contrast, 44px tap targets, and support for Reduce Transparency and Reduce Motion (see the end of `styles.css`).

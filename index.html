@@ -27,6 +27,15 @@
     </div>
   </template>
 
+  <!-- Start-up screen: a greeting for BB. No buttons: a tap anywhere ripples into the library. -->
+  <div id="splash" class="splash" role="button" tabindex="0" aria-label="Open your library">
+    <div class="splash-content">
+      <p class="splash-greeting"></p>
+      <p class="splash-name">BB</p>
+    </div>
+    <p class="caption splash-hint" aria-hidden="true">Tap anywhere to open your library</p>
+  </div>
+
   <main class="app">
     <!-- Home: the H3 hero screen -->
     <section class="screen" data-screen="home" aria-label="Home">

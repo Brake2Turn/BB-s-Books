@@ -25,6 +25,15 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - The author, and tint status chips.
   - Glass cards for progress, blurb, rating and review, each headed by an eyebrow.
 
+## Changes the owner asked for
+
+- **Plain white ledges.** The guide's glass ledges let the blurred washes show through as texture, and the owner asked for plain white shelves. Ledges are now solid `--white` with a 1px `--outline` and a soft shadow (`--shadow-ledge-plain`), with no blur. The glass-ledge tokens stay in `styles.css` to match `design/tokens.json`, but nothing uses them.
+- **Start-up screen.** Shown every time the app opens:
+  - On the washes: "Good morning" (5am to noon), "Good afternoon" (noon to 6pm) or "Good evening" (otherwise, late night included), in the hero unit style (Fraunces 22, `--ink-2`). Below it, "BB" in the hero count style (Fraunces 96 light).
+  - No buttons, as asked. A faint "Tap anywhere to open your library" caption fades in after two seconds, so it's clear what to do.
+  - A tap sends a soft white wave and three white rings (tokens `--ripple`, `--ripple-soft`, `--ripple-edge`) out from her finger. The screen melts away over about a second to show the library.
+  - Enter or Space also opens it. Reduce Motion gives a plain fade.
+
 ## Components the guide doesn't specify
 
 - **Primary button** (Add to library, Save review): built like the scan button. Cobalt pill, 52px tall, white 60% border, `--shadow-scan`, Nunito Sans 14/700. It is the screen's one cobalt action, as the guide asks.

@@ -8,6 +8,7 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 
 | | |
 |---|---|
+| **Start-up screen** | Each time the app opens it greets her by the time of day ("Good morning", "Good afternoon" or "Good evening") with "BB" below. A tap anywhere ripples out from her finger into the library. |
 | **Barcode scan** | Point the camera at the ISBN barcode on the back. The book's details and blurb come from Google Books and Open Library. |
 | **The right cover** | Covers are looked up by the exact ISBN on her copy (Amazon's image store, then Open Library, then Google), so the picture matches her edition. Below the found book is a row of every cover it might have: her edition first, then other editions from Open Library and Google, then **Take a photo** for her own copy. She taps one to use it. **Change cover** on a book's page brings the same choices back later. |
 | **Cover scan** | Take a photo of the front cover. The app cleans up the photo (contrast, light-on-dark lettering), reads the words on it on the phone itself, and ignores cover clutter like "Sunday Times bestseller". It then searches several ways and puts the best match first. The words it read stay editable in case it slipped. Her photo is used as the cover by default, since it's exactly her copy. |
