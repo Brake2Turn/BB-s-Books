@@ -35,7 +35,7 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - Enter or Space also opens it. Reduce Motion gives a plain fade.
 
 - **One-style title.** "BB's Books" is Fraunces 36/42 at 500 throughout. The guide's italic "Books" was dropped at the owner's request, for a more standard title.
-- **Count beside the title.** On Home and Profile the book count sits on the title's row, right-aligned and baseline-aligned: number in Fraunces 36 light, "books" in Fraunces 17 `--ink-2`. It replaces the big HeroCount, which freed up the top of the screen.
+- **Count beside the title.** On every tab the book count sits on the title's row, right-aligned and baseline-aligned: number in Fraunces 36 light, "books" in Fraunces 17 `--ink-2`. It replaces the big HeroCount, which freed up the top of the screen.
 - **Filter dropdowns instead of chips.** Home's Reading / Want to read / Finished chips became one row of three pill dropdowns: status ("All books"), genre ("All genres") and sort ("Newest", "Title", "Author", "Rating").
   - They are styled exactly like the chips they replace: glass over the washes, tint kit on white, switching with the reading card.
   - A pill set to anything but its default takes the selected-chip look.
@@ -43,6 +43,14 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - The "14 books" caption under the filters was removed.
 - **Stats without the hero.** "Finished" is a normal row now. Labels and values are kept short ("This month: 3 added", "Top genre: Classics", "None yet") and never wrap. A very long value shortens with an ellipsis rather than spilling onto a second line.
 - **Profile data card.** It shows whether the library is protected from browser clean-up, the last backup date, and a list of automatic copies with a Restore button each, in the existing glass-card and row styles.
+
+- **Milestones in gold.** The 1st, 5th, 10th, 25th, 50th and 100th book, then every 100th, get their own celebration:
+  - Gold confetti with glinting pieces, plus the corner cannons, instead of the colourful burst.
+  - An "A milestone" eyebrow with a gold dot.
+  - A headline sentence in gold with a slow shimmer: "Your very first book", "Five books on the shelf", "Ten books and counting", "Twenty-five books strong", "Fifty books, half a century", "One hundred books", then "Two hundred books" and so on.
+  - The gold text runs between `--gold-text` (#7A5A12) and `--gold-text-light` (#9A6F0B), which keeps at least 3:1 on every wash at 36px. The confetti golds (`--gold-light`, `--gold`, `--gold-mid`, `--gold-deep`) are decoration only.
+  - Gold is used nowhere else in the app.
+- **Celebration waits for a tap.** It no longer moves on by itself. "Tap to continue" stays until she taps (or presses Enter or Space). Taps in the first 0.7 seconds are ignored, so the tap that added the book can't skip it. The tap plays the same ripple as the start-up screen (`js/ripple.js`) while the cover flies to its shelf.
 
 ## Components the guide doesn't specify
 

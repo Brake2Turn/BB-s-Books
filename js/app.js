@@ -6,6 +6,7 @@ import { sampleBooks } from './demo.js';
 import { GENRES } from './genres.js';
 import { genreFor } from './lookup.js';
 import { coverPicker } from './cover-picker.js';
+import { ripple } from './ripple.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -771,24 +772,7 @@ function initSplash() {
       splash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).finished.then(() => splash.remove());
       return;
     }
-    // Big enough to reach the farthest corner from where she tapped.
-    const reach = 2 * Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-    const ring = (cls, delay, duration) => {
-      const el = document.createElement('span');
-      el.className = `ripple ${cls}`;
-      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${reach}px`, height: `${reach}px` });
-      splash.append(el);
-      // Bright while it spreads, fading only at the end.
-      el.animate([
-        { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
-        { transform: 'translate(-50%, -50%) scale(.55)', opacity: 0.95, offset: 0.55 },
-        { transform: 'translate(-50%, -50%) scale(1)', opacity: 0 },
-      ], { duration, delay, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'both' });
-    };
-    ring('wave', 0, 1000);
-    ring('ring', 0, 1150);
-    ring('ring', 160, 1150);
-    ring('ring', 320, 1150);
+    ripple(splash, x, y);
     splash.querySelector('.splash-content').animate([
       { transform: 'none', opacity: 1 },
       { transform: 'scale(1.06)', opacity: 0 },

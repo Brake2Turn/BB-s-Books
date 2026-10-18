@@ -3,6 +3,7 @@ import * as lookup from './lookup.js';
 import * as scanner from './scanner.js';
 import { coverEl } from './covers.js';
 import { coverPicker } from './cover-picker.js';
+import { ripple } from './ripple.js';
 
 const $ = (sel) => document.querySelector(sel);
 const dlg = $('#scanner');
@@ -400,31 +401,52 @@ function move(el, frames, opts) {
 
 // ---------- Celebration ----------
 
-const MILESTONES = new Set([5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000]);
 const CHEERS = ['A fine addition', 'The shelf grows', 'Good choice', 'Another one for the shelves', 'One more story to keep'];
 
-function ordinal(n) {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n.toLocaleString('en-GB')}${s[(v - 20) % 10] || s[v] || s[0]}`;
+/** Milestones: the 1st, 5th, 10th, 25th, 50th and 100th book, then every hundred after that. */
+const isMilestone = (n) => [1, 5, 10, 25, 50].includes(n) || (n >= 100 && n % 100 === 0);
+
+const UNITS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+/** "Two hundred", "One thousand", "Two thousand three hundred" for the round milestones. */
+function hundredsInWords(n) {
+  const th = Math.floor(n / 1000);
+  const h = Math.floor((n % 1000) / 100);
+  if (th > 9) return n.toLocaleString('en-GB');
+  const words = [th && `${UNITS[th]} thousand`, h && `${UNITS[h]} hundred`].filter(Boolean).join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** The words for the moment: first book and milestones get their own lines. */
-function cheerFor(n, book) {
+/** The words for the moment. Milestones get their own gold headline; other books a warm line. */
+export function cheerFor(n, book) {
   const byline = [book.title, (book.authors || [])[0]].filter(Boolean).join(' by ');
-  if (n === 1) return { big: 'Your first book', sub: `Every library starts somewhere. Yours starts with ${byline}.`, milestone: true };
-  if (MILESTONES.has(n)) return { big: `Your ${ordinal(n)} book`, sub: `${byline} marks the milestone.`, milestone: true };
+  const lines = {
+    1: ['Your very first book', `Every library starts with one. Yours starts with ${byline}.`],
+    5: ['Five books on the shelf', `${byline} makes five. It’s starting to look like a library.`],
+    10: ['Ten books and counting', `${byline} takes you into double figures.`],
+    25: ['Twenty-five books strong', `${byline} makes twenty-five. That’s a proper shelf.`],
+    50: ['Fifty books, half a century', `${byline} makes fifty. Halfway to a hundred.`],
+    100: ['One hundred books', `${byline} takes you to a hundred. A true library.`],
+  };
+  if (isMilestone(n)) {
+    const [big, sub] = lines[n] || [`${hundredsInWords(n)} books`, `${byline} makes ${n.toLocaleString('en-GB')}. What a collection.`];
+    return { big, sub, milestone: true };
+  }
   return { big: `Book ${n.toLocaleString('en-GB')}`, sub: `${CHEERS[n % CHEERS.length]}: ${byline}.`, milestone: false };
 }
 
 const confettiCanvas = dlg.querySelector('.confetti');
 const celebrateText = dlg.querySelector('.celebrate-text');
 
-/** A burst of confetti in the guide's wash colours and cobalt, using a plain canvas. */
-function confetti(originX, originY, { side = false } = {}) {
+/**
+ * A burst of confetti on a plain canvas: the guide's wash colours and cobalt for a normal
+ * book, all gold (with glinting pieces) for a milestone.
+ */
+function confetti(originX, originY, { side = false, gold = false } = {}) {
   if (reduced()) return;
   const css = getComputedStyle(document.documentElement);
-  const colours = ['--wash-coral', '--wash-pink', '--wash-sky', '--wash-apricot', '--accent', '--accent', '--white']
+  const colours = (gold
+    ? ['--gold-light', '--gold', '--gold', '--gold-mid', '--gold-deep', '--white']
+    : ['--wash-coral', '--wash-pink', '--wash-sky', '--wash-apricot', '--accent', '--accent', '--white'])
     .map((t) => css.getPropertyValue(t).trim());
   const dpr = Math.min(2, devicePixelRatio || 1);
   const w = innerWidth;
@@ -447,6 +469,7 @@ function confetti(originX, originY, { side = false } = {}) {
       round: Math.random() < 0.3,
       colour: colours[Math.floor(Math.random() * colours.length)],
       wobble: Math.random() * 10,
+      glint: gold && Math.random() < 0.35, // some gold pieces catch the light as they turn
     };
   });
   // One burst from behind the cover, plus cannons from the bottom corners for milestones.
@@ -469,9 +492,11 @@ function confetti(originX, originY, { side = false } = {}) {
       ctx2.translate(p.x, p.y);
       ctx2.rotate(p.r);
       ctx2.fillStyle = p.colour;
+      if (p.glint) ctx2.globalAlpha = Math.max(0, Math.min(1, (life - t) / 500)) * (0.55 + 0.45 * Math.abs(Math.sin(t / 70 + p.wobble)));
       if (p.round) { ctx2.beginPath(); ctx2.arc(0, 0, p.size / 2.4, 0, Math.PI * 2); ctx2.fill(); }
       else ctx2.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2 * (0.4 + Math.abs(Math.sin(t / 90 + p.wobble))));
       ctx2.restore();
+      if (p.glint) ctx2.globalAlpha = Math.max(0, Math.min(1, (life - t) / 500));
     }
     if (t < life) requestAnimationFrame(frame);
     else ctx2.clearRect(0, 0, w, h);
@@ -491,6 +516,8 @@ async function celebrate(flyer, from, book) {
   const cheer = cheerFor(n, book);
   celebrateText.querySelector('.celebrate-big').textContent = cheer.big;
   celebrateText.querySelector('.celebrate-sub').textContent = cheer.sub;
+  celebrateText.querySelector('.celebrate-eyebrow span').textContent = cheer.milestone ? 'A milestone' : 'Added to your library';
+  celebrateText.classList.toggle('milestone', cheer.milestone);
   dlg.classList.add('celebrating');
 
   const tw = Math.min(innerWidth * 0.46, 200);
@@ -513,7 +540,7 @@ async function celebrate(flyer, from, book) {
       { transform: centre },
     ], { duration: 820, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'forwards' });
     setTimeout(() => {
-      confetti(innerWidth / 2, innerHeight * 0.32, { side: cheer.milestone });
+      confetti(innerWidth / 2, innerHeight * 0.32, { side: cheer.milestone, gold: cheer.milestone });
       const shine = document.createElement('i');
       shine.className = 'shine';
       flyer.append(shine);
@@ -523,14 +550,22 @@ async function celebrate(flyer, from, book) {
   setTimeout(() => celebrateText.classList.add('show'), reduced() ? 0 : 520);
   haptic(cheer.milestone ? [30, 60, 30, 60, 120] : [25, 50, 60]);
 
-  // Hold the moment; a tap moves on sooner. The tap listener is removed either way.
-  const taps = new AbortController();
-  await Promise.race([
-    wait(cheer.milestone ? 3200 : 2400),
-    wait(700).then(() => new Promise((r) => dlg.addEventListener('click', r, { once: true, signal: taps.signal }))),
-  ]);
-  taps.abort();
+  // Stay until she taps (or presses Enter or Space). Taps in the first moment are ignored,
+  // so the tap that added the book can't skip its own celebration.
+  await wait(700);
+  const at = await new Promise((resolve) => {
+    const stop = new AbortController();
+    const done = (x, y) => { stop.abort(); resolve({ x, y }); };
+    dlg.addEventListener('click', (e) => done(e.clientX || innerWidth / 2, e.clientY || innerHeight / 2), { signal: stop.signal });
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); done(innerWidth / 2, innerHeight / 2); }
+    }, { signal: stop.signal });
+  });
+  // The same ripple as the start-up screen, spreading from her finger as the library returns.
+  ripple(dlg, at.x, at.y);
+  if (navigator.vibrate) navigator.vibrate(10);
   celebrateText.classList.remove('show');
+  await wait(reduced() ? 0 : 320);
   return centre;
 }
 
@@ -576,6 +611,7 @@ async function addToLibrary() {
       ctx.landed(tile);
     }
     haptic(18);
+    await wait(reduced() ? 0 : 500); // let the ripple finish spreading over the library
   } catch (err) {
     console.warn('Adding the book failed', err);
     ctx.toast('That didn’t save. Try adding it again.');

@@ -100,6 +100,13 @@
   --ripple: rgba(255, 255, 255, 0.9);          /* start-up ripple: white rings (see DESIGN_DECISIONS.md) */
   --ripple-soft: rgba(255, 255, 255, 0.4);
   --ripple-edge: rgba(47, 91, 217, 0.35);       /* a touch of cobalt so rings read on pale washes */
+  /* Gold, for milestone celebrations only (see DESIGN_DECISIONS.md). Text golds keep 3:1 on every wash at 36px. */
+  --gold-text: #7A5A12;
+  --gold-text-light: #9A6F0B;
+  --gold-light: #FFE7A0;
+  --gold: #F2C94C;
+  --gold-mid: #E0A82E;
+  --gold-deep: #C9971C;
   --shadow-ledge-plain: 0 6px 14px -8px rgba(21, 20, 28, 0.22); /* plain white ledges (owner's request, see DESIGN_DECISIONS.md) */
   --shadow-tabbar: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 24px 50px -12px rgba(47, 91, 217, 0.3);
   --shadow-scan: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 28px -6px rgba(47, 91, 217, 0.65);
@@ -751,6 +758,18 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .celebrate-sub { max-width: 30ch; font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-2); }
 .celebrate-hint { margin-top: 12px; opacity: .8; }
 .scanner.celebrating { cursor: pointer; }
+.scanner .ripple { z-index: 45; }
+/* Milestones: a gold headline with a slow shimmer, and a gold eyebrow dot */
+.celebrate-text.milestone .celebrate-big {
+  background: linear-gradient(100deg, var(--gold-text) 0%, var(--gold-text-light) 45%, var(--gold-text) 55%, var(--gold-text-light) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gold-shimmer 3.2s ease-in-out infinite;
+}
+.celebrate-text.milestone .eyebrow i { background: var(--gold-deep); }
+@keyframes gold-shimmer { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 .flying .shine {
   position: absolute;
   inset: 0;
