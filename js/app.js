@@ -348,7 +348,7 @@ async function protectLibrary() {
   try {
     const stored = await db.getMeta('dataVersion', 0);
     if (stored < DATA_VERSION) {
-      if (books.length) await db.saveSnapshot(books, 'Before an app update');
+      if (books.length) await db.saveSnapshot(books, 'Before an app update', librarySignature(books));
       const upgraded = books.map(normaliseBook);
       const changed = upgraded.filter((b, i) => JSON.stringify(b) !== JSON.stringify(books[i]));
       if (changed.length) await db.putMany(changed);
@@ -356,10 +356,18 @@ async function protectLibrary() {
       await db.setMeta('dataVersion', DATA_VERSION);
     }
     // A daily copy, but only when something has changed since the last one.
-    const latest = (await db.listSnapshots())[0];
+    // The newest copy's time and fingerprint come from the settings store, so this reads
+    // none of the copies (each can be large). Libraries from before that was kept look up
+    // their newest copy once.
+    let latest = await db.getMeta('lastSnapshot', null);
+    if (!latest) {
+      const [newest] = await db.snapshotKeys();
+      const copy = newest ? await db.getSnapshot(newest) : null;
+      latest = copy ? { at: copy.at, sig: copy.sig || librarySignature(copy.books) } : null;
+    }
     const sig = librarySignature(books);
-    if (books.length && (!latest || (Date.now() - latest.at > 20 * 3600 * 1000 && librarySignature(latest.books) !== sig))) {
-      await db.saveSnapshot(books, 'Daily copy');
+    if (books.length && (!latest || (Date.now() - latest.at > 20 * 3600 * 1000 && latest.sig !== sig))) {
+      await db.saveSnapshot(books, 'Daily copy', sig);
     }
     await db.pruneSnapshots(KEEP_SNAPSHOTS);
   } catch (err) {
@@ -406,7 +414,7 @@ async function renderProfile() {
 
 async function restoreSnapshot(copy) {
   if (!confirm(`Go back to your library as it was on ${dateLabel(copy.at)} (${copy.count} ${plural(copy.count, 'book')})? Today’s library is saved as a copy first.`)) return;
-  if (books.length) await db.saveSnapshot(books, 'Before a restore');
+  if (books.length) await db.saveSnapshot(books, 'Before a restore', librarySignature(books));
   await db.replaceAll(copy.books);
   await db.pruneSnapshots(KEEP_SNAPSHOTS + 1);
   books = await db.getAll();
@@ -697,7 +705,7 @@ async function importLibrary(file) {
   const changed = updates.length - added;
   const parts = [added && `add ${added} ${plural(added, 'book')}`, changed && `update ${changed}`].filter(Boolean).join(' and ');
   if (!confirm(`This will ${parts}. Nothing in your library is removed. Go ahead?`)) return;
-  if (books.length) await db.saveSnapshot(books, 'Before a restore');
+  if (books.length) await db.saveSnapshot(books, 'Before a restore', librarySignature(books));
   await db.putMany(updates);
   books = await db.getAll();
   render();

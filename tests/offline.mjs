@@ -1,0 +1,21 @@
+import { chromium } from './pw.mjs';
+import { spawn } from 'child_process';
+const srv = spawn(process.execPath, [process.env.HTTP_SERVER_BIN || '/opt/node-tools/node_modules/http-server/bin/http-server', '-p', '8124', '-c-1', '-s', '.'], { cwd: '/home/user/BB-s-Books' });
+await new Promise((r) => setTimeout(r, 1500));
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+const p = await ctx.newPage();
+const errors = [];
+p.on('pageerror', (e) => errors.push(e.message));
+await p.goto('http://localhost:8124/?demo');
+await p.evaluate(() => navigator.serviceWorker.ready);
+await p.reload();
+await p.waitForTimeout(1500);
+srv.kill('SIGKILL'); // the server is gone: from here on only the cache can answer
+await new Promise((r) => setTimeout(r, 800));
+await p.reload();
+await p.waitForTimeout(1000);
+console.log('with server down, app shows:', await p.textContent('[data-count]'), 'books | title:', await p.textContent('.app-title'));
+console.log('uncached file:', await p.evaluate(async () => { try { const r = await fetch('/nope.txt'); return 'resolved ' + r.status + ' type=' + r.type + ' headers=' + JSON.stringify([...r.headers]); } catch (e) { return 'rejected cleanly (' + e.name + ')'; } }));
+console.log('errors:', errors);
+await b.close();

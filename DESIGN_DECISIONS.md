@@ -8,13 +8,12 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 
 - **Home holds the whole library.** Below the guide's header, count and reading card come:
   - a search field from the white-zone kit (white fill, `--outline`, pill)
-  - the filter chips: All, Reading, Want to read, Finished. Four don't fit 350px, so the row scrolls sideways rather than wrapping.
-  - the book count and a small sort control
+  - one row of dropdown pills: status, genre and sort (see "Filter dropdowns instead of chips" below)
   - every book on shelf rows of three
 - **No profile button in the header.** It was removed at the owner's request, so the AppHeader is just the title. Backup lives on the Profile tab.
 - **Tabs:** Home, Stats, Scan (centre), Feedback, Profile, keeping the guide's four tabs around Scan.
-- **Stats tab:** a HeroCount of finished books ("7 finished") and a glass card listing reading, want to read, pages read, average rating and books added this month.
-- **Profile tab:** the library count, then a glass card with Back up and Restore.
+- **Stats tab:** a glass card of short one-line rows (see "Stats without the hero" below).
+- **Profile tab:** the library count, then a glass card with backup, restore and automatic copies (see "Profile data card" below).
 - **Feedback tab:**
   - The header, with a short intro line where a count would be.
   - A glass card with a message box, an optional name field and a cobalt Send button.
@@ -91,9 +90,9 @@ The guide only says not to animate the washes or the count. So:
   - The cover springs to the centre with a little tilt and a shine sweeps across it.
   - Confetti in the four wash colours, cobalt and white bursts from behind it.
   - "Book 15" is called out in Fraunces 36 under an "Added to your library" eyebrow.
-  - The first book and milestones (5, 10, 25, 50, 75, 100, then every 50 or so) get their own line and extra confetti cannons from the bottom corners.
+  - Milestones get gold instead (see "Milestones in gold" above).
   - Copy follows the voice rules: no exclamation marks, no emoji.
-  - It holds for about 2.4 seconds (3.2 for milestones), or until she taps. Then the cover swoops to its spot on Home, and the ledge dips under it.
+  - It stays until she taps (see "Celebration waits for a tap" above). Then the ripple plays, the cover swoops to its spot on Home, and the ledge dips under it.
   - No tick badge, because the guide forbids badges on covers.
   - Reduce Motion keeps the words, without springs or confetti.
 - Opening a book grows its cover out of its place on the shelf.
@@ -106,6 +105,10 @@ The guide only says not to animate the washes or the count. So:
 - **Light only:** the guide is light-only, so the earlier dark mode was removed. `color-scheme: light` stops browsers darkening it.
 - **Fonts** are self-hosted rather than loaded from Google Fonts, so the app works offline. Fraunces covers weights 300–500 and italic; Nunito Sans is the variable file.
 - **Cover loading tone** is `#EDE7E4` (from the BookCover spec), as the token `--cover-loading`.
+
+## Data safety
+
+- **Automatic copies are cheap to check.** The time and fingerprint of the newest copy are kept in the small settings store (`lastSnapshot`), so opening the app never reads the copies themselves. With a large library and photo covers, reading all five copies on every launch was slowing start-up. Libraries from before this change fall back to reading only the newest copy, once.
 
 ## Kept from earlier work
 

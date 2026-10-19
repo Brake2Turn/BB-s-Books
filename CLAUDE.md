@@ -34,6 +34,25 @@ Where the guide is silent (camera, sheets, the book page, motion), follow `DESIG
 - Run locally with `npx http-server -p 8080 .`. Open `/?demo` for a sample shelf that never touches the real library.
 - Lint: `npx eslint --no-config-lookup --rule '{"no-unused-vars":"error"}' js/*.js sw.js`
 
+## Branches and deploying (a real user is on the live app)
+
+- **Live branch:** GitHub Pages serves `claude/happy-fermi-c9vv82` at https://brake2turn.github.io/BB-s-Books/. Every push to it reaches BB's phone within minutes. `main` is older and not live.
+- **Work on a feature branch** made from the live branch (for example `feature/<topic>`), unless the session names a different one. Never push to the live branch or `main` without the owner's explicit OK. Don't open pull requests unless asked.
+- **Going live** = merging the tested feature branch into the live branch, with the owner's OK. Bump `VERSION` in `sw.js` in any change to shipped files, or phones keep the old cached code.
+- **Optional move to `main`:** merge the live branch into `main`, then the owner switches **Settings → Pages** to `main`. Same address, so her library is unaffected. Only do this when the owner asks; afterwards update this section and the README.
+
+## Tests
+
+- `tests/run-all.sh` runs every browser test (about 3 minutes). `tests/run-all.sh <name>` runs one. Run the whole suite before anything goes live, and add or extend a test for each new feature.
+- They drive the real app in headless Chromium (Playwright is installed globally; `tests/pw.mjs` finds it). Each run uses a fresh profile, a fake camera (`tests/.fixtures/barcode.y4m`), mocked Google Books / Open Library / cover responses, and port 8123. `make-fixtures.sh` builds the fixtures on first run (needs python3 with Pillow, and ffmpeg). They are not committed.
+- A test passes when it exits 0 and prints the line `errors: []`. Print an `errors:` array the same way in new tests.
+- `data-safety` is the one that matters most. It covers upgrades from older libraries, restores, backups, automatic copies, and a library shaped like BB's current one. Extend it with every data change.
+- Gotchas:
+  - In Playwright, the route registered last wins.
+  - `context.setOffline` doesn't reach the service worker, so `offline.mjs` stops the server instead.
+  - Don't use a fake clock around animations.
+  - When killing stray servers, use `pkill -f '[h]ttp-server'` so the pattern doesn't match your own shell.
+
 ## Her library's data: never lose it
 
 The library lives in IndexedDB on her phone, separate from the code, so deploying new code never touches it. Keep it that way:
@@ -41,8 +60,21 @@ The library lives in IndexedDB on her phone, separate from the code, so deployin
 - **Same address.** The app must stay at https://brake2turn.github.io/BB-s-Books/. Browser storage belongs to an address, so renaming the repo, moving host or adding a custom domain opens an empty library. If a move is unavoidable, she must back up first and restore after.
 - **Database changes are additive.** Read the rules at the top of `js/db.js`: never rename the database or the `books` store, and never delete or clear anything in an upgrade.
 - **Record changes are additive.** Change a book's shape only in `normaliseBook` in `js/app.js`, and bump `DATA_VERSION` when you do. `protectLibrary` saves an automatic copy before upgrading, and unknown fields are always kept.
+- **Automatic copies.** Up to 5 (`KEEP_SNAPSHOTS`). The newest copy's time and fingerprint live in the `meta` store as `lastSnapshot`, so launch never reads the copies. Keep it that way.
 - **Restores merge.** "Add books from a backup" never deletes books. The newer copy of a book wins (`updatedAt`). Whole-library rollback is only through Profile → Automatic copies, which saves today's library first.
 - **Test with an old library.** Before shipping a data change, open the app over a library saved by the previous version and check nothing is lost.
+
+## Current state (October 2026)
+
+Everything the owner has asked for so far is built and live, and all tests pass:
+- start-up greeting and ripple
+- Home with the reading card, search and dropdown filters
+- plain white shelves and the count on every tab
+- Stats, Feedback and Profile (backup, merge restore, automatic copies)
+- barcode and cover scanning, the edition cover picker and genres
+- the tap-to-continue celebration with gold milestones
+
+`DATA_VERSION` is 3, the database version is 2 and `sw.js` is at `v13`. BB has installed it to her home screen and has a good number of books in it.
 
 ## Feedback
 

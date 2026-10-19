@@ -80,18 +80,33 @@ export const setMeta = (key, value) => tx('meta', 'readwrite', (s) => s.put({ ke
 
 // ---------- Automatic copies ----------
 
-/** Save a copy of the whole library, labelled with why it was taken. */
-export const saveSnapshot = (books, reason) => tx('snapshots', 'readwrite', (s) => s.put({ at: Date.now(), reason, count: books.length, books }));
+/**
+ * Save a copy of the whole library, labelled with why it was taken. `sig` is the library's
+ * fingerprint; the newest copy's time and fingerprint are also kept in the settings store so
+ * launching the app never has to read the (possibly large) copies themselves.
+ */
+export async function saveSnapshot(books, reason, sig = '') {
+  const at = Date.now();
+  await tx('snapshots', 'readwrite', (s) => s.put({ at, reason, count: books.length, sig, books }));
+  await setMeta('lastSnapshot', { at, sig });
+}
 
-/** Every automatic copy, newest first. */
+/** Keys (times) of every automatic copy, newest first. Reads no copy data. */
+export async function snapshotKeys() {
+  const keys = await tx('snapshots', 'readonly', (s) => s.getAllKeys());
+  return keys.sort((a, b) => b - a);
+}
+
+export const getSnapshot = (at) => tx('snapshots', 'readonly', (s) => s.get(at));
+
+/** Every automatic copy, newest first (reads them all: only for the Profile list). */
 export async function listSnapshots() {
   const all = await tx('snapshots', 'readonly', (s) => s.getAll());
   return all.sort((a, b) => b.at - a.at);
 }
 
-/** Keep only the newest `keep` copies. */
+/** Keep only the newest `keep` copies. Reads no copy data. */
 export async function pruneSnapshots(keep) {
-  const all = await listSnapshots();
-  const old = all.slice(keep).map((x) => x.at);
+  const old = (await snapshotKeys()).slice(keep);
   if (old.length) await tx('snapshots', 'readwrite', (s) => { old.forEach((at) => s.delete(at)); });
 }

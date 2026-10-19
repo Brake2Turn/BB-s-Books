@@ -16,8 +16,8 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** starts a celebration: the cover springs up, confetti flies and the book's number is called out. Milestones (1st, 5th, 10th, 25th, 50th, 100th, then every 100th book) get gold confetti and a gold headline. It stays until she taps; then a ripple spreads from her finger and the cover lands in its spot on the shelf. **Not this one** goes back to the camera. |
 | **Genres** | Each book gets a genre from the book databases, tidied into a short list (Fantasy, Romance, Mystery & thriller, and so on). Filter by genre on Home, or change a book's genre on its page. |
 | **Use a photo instead** | Pick a photo of a barcode or cover rather than using the live camera. Handy on a laptop. |
-| **Home** | The library count, the book she's reading now (with progress), then every book on glass shelves of three, with search, sort and Reading / Want to read / Finished filters. Scanning a book twice won't add a duplicate. |
-| **Stats** | Books finished, pages read, average rating and more. |
+| **Home** | The library count, the book she's reading now (with progress), then every book on plain white shelves of three, with search and one row of dropdown filters: status (Reading / Want to read / Finished), genre and sort. Scanning a book twice won't add a duplicate. |
+| **Stats** | Short one-line rows: finished, reading, want to read, pages read, average rating, books added this month, top genre. |
 | **Feedback** | A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
 | **Book page** | Large cover, blurb, Want to read / Reading / Finished, page progress, 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
 | **Back up / Restore** | On the Profile tab. **Back up library** opens the share sheet, so the file can go to iCloud Drive, Google Drive, Files, email or AirDrop (computers download it). **Add books from a backup** merges: it adds missing books and updates older copies, and never deletes anything. |
@@ -31,8 +31,10 @@ The camera only works on a secure (`https://`) address, so the app needs to be h
 **GitHub Pages** (free for public repos; private repos need a paid GitHub plan):
 
 1. On GitHub, open **Settings → Pages**.
-2. Under *Build and deployment*, pick **Deploy from a branch**, choose `main` and `/ (root)`, then save.
+2. Under *Build and deployment*, pick **Deploy from a branch**, choose the live branch and `/ (root)`, then save.
 3. After a minute the site appears at `https://<your-username>.github.io/BB-s-Books/`.
+
+**This app is live** at https://brake2turn.github.io/BB-s-Books/, served from the branch `claude/happy-fermi-c9vv82`. Anything pushed to that branch reaches BB's phone within a few minutes. See *Branches and updates* below.
 
 **Netlify or Cloudflare Pages** also work if you'd rather keep the repo private. Point them at this repo and leave the build command empty.
 
@@ -57,7 +59,7 @@ Add `?demo` to the address (for example `https://brake2turn.github.io/BB-s-Books
 
 Open the same link in Chrome, Edge or Safari on your laptop. Everything works there too. Laptop webcams often can't focus on a barcode, so use **Use a photo** in the scanner and pick a photo of a barcode or cover (a phone snap you've sent yourself works fine). With no webcam at all, the photo option still works.
 
-The laptop keeps its **own separate library**, so testing there won't put books on her phone. To copy her real library over, use **Profile → Back up library** on her phone and **Profile → Restore from backup** on the laptop.
+The laptop keeps its **own separate library**, so testing there won't put books on her phone. To copy her real library over, use **Profile → Back up library** on her phone and **Profile → Add books from a backup** on the laptop.
 
 ## Running it locally
 
@@ -67,6 +69,39 @@ npx http-server -p 8080 .
 ```
 
 (`localhost` counts as secure, so the camera works on a laptop webcam.)
+
+## Branches and updates
+
+BB is using the app and her library is on her phone, so updates follow a simple routine:
+
+1. **Work on a feature branch**, made from the live branch (`claude/happy-fermi-c9vv82`). Pushing a feature branch changes nothing on her phone.
+2. **Test locally** with `npx http-server -p 8080 .`, using `/?demo` for a sample shelf, and run `tests/run-all.sh`.
+3. **Go live** by merging the feature branch into the live branch, only once it's tested and the owner has said yes. GitHub Pages republishes in a minute or two. Her phone picks up the new code the next time she opens the app (the service worker's `VERSION` in `sw.js` must be bumped for that).
+
+Her books are never part of a deploy: they live in her phone's browser storage, tied to the address. Code changes can't remove them as long as the address stays the same and database changes stay additive (see `CLAUDE.md`).
+
+**Optional: make `main` the live branch.** `main` is currently behind. To switch: merge the live branch into `main`, then in **Settings → Pages** change the branch to `main`. The address stays the same, so her library is unaffected. After that, feature branches come off `main` and merge back into it.
+
+## Tests
+
+```sh
+tests/run-all.sh                 # everything (about 3 minutes)
+tests/run-all.sh data-safety     # one test
+```
+
+Browser tests drive the real app in headless Chromium with Playwright. They use a fake camera, stand-in book data and fresh browser profiles, so they never touch a real library. `tests/make-fixtures.sh` builds the test images and fake camera video on first run (into `tests/.fixtures/`, which isn't committed). A test passes when it exits cleanly and prints `errors: []`.
+
+| Test | Checks |
+|---|---|
+| `data-safety` | Old libraries upgrade with nothing lost, reloads don't pile up copies, restores merge, backups work, automatic copies restore, and a library shaped like BB's current one survives the update |
+| `scan-and-covers` | Barcode scan with the fake camera, edition cover, cover picker, duplicate guard |
+| `genres-and-celebration` | Genre mapping and filter, the add-to-library celebration and tap-to-continue |
+| `milestones` | Milestone wording and gold confetti, count on every tab |
+| `home-and-feedback` | Search, filters, no profile button, feedback sending and failure |
+| `no-camera` | Clear message when there's no camera |
+| `start-screen` | Greeting by time of day, tap and Enter open the library |
+| `cover-reading` | Reads five real-looking covers and picks the right book among decoys |
+| `offline` | App opens with the server down |
 
 ## Project layout
 
@@ -87,6 +122,7 @@ js/icons.js           line icons
 js/demo.js            sample shelf for ?demo
 js/db.js              on-device storage (IndexedDB)
 sw.js                 offline support
+tests/                browser tests (see Tests)
 vendor/               bundled libraries: ZXing (barcodes), Tesseract.js (cover text)
 ```
 
