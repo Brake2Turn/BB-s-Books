@@ -35,7 +35,7 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 
 - **One-style title.** "BB's Books" is Fraunces 36/42 at 500 throughout. The guide's italic "Books" was dropped at the owner's request, for a more standard title.
 - **Count beside the title.** On every tab the book count sits on the title's row, right-aligned and baseline-aligned: number in Fraunces 36 light, "books" in Fraunces 17 `--ink-2`. It replaces the big HeroCount, which freed up the top of the screen.
-- **Filter dropdowns instead of chips.** Home's Reading / Want to read / Finished chips became one row of three pill dropdowns: status ("All books"), genre ("All genres") and sort ("Newest", "Title", "Author", "Rating").
+- **Filter dropdowns instead of chips.** Home's Reading / To be read / Finished chips became one row of three pill dropdowns: status ("All books"), genre ("All genres") and sort ("Newest", "Title", "Author", "Rating").
   - They are styled exactly like the chips they replace: glass over the washes, tint kit on white, switching with the reading card.
   - A pill set to anything but its default takes the selected-chip look.
   - Each pill is sized to its current label rather than its longest option.
@@ -51,6 +51,11 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - When the words appear, a band of light (`--gold-sheen`, `--gold-sheen-peak`) sweeps across once straight away, then again every 3.6 seconds while the screen is up. Reduce Motion stops the sweep.
   - The confetti golds (`--gold-light`, `--gold`, `--gold-mid`, `--gold-deep`) are decoration only.
   - Gold is used nowhere else in the app.
+- **"To be read" instead of "Want to read".** The owner's wording, used everywhere a status is named (book page, Home filter, Stats). Only the label changed: the saved value is still `want`, so no book needed changing.
+- **Did not finish.** A fourth status, "Did not finish", after Finished. On the book page the four status chips wrap onto two centred rows on a phone (To be read, Reading, Finished, then Did not finish), which keeps every chip at full size and 44px tall rather than shrinking them. A Did not finish book keeps its "Page __ of __" card, captioned "Stopped at 35% · 96 of 273 pages", so she can note where she stopped. Its pages count towards "Pages read". It has its own option in the status filter and a row in Stats.
+- **Physical or audiobook.** For finished books only, a second chip row, "Read as: Physical / Audiobook", sits under the status chips, in the same tint chips. The quiet "Read as" label (13/700, `--ink-2`) stops it reading as more statuses. Neither is chosen until she taps one, and tapping the chosen one again clears it. The choice is kept if the status changes, but only shown while the book is Finished. Stats gains an "Audiobooks" row (finished audiobooks).
+- **Author sort is by surname.** "Author" sorts A to Z by the first author's surname, as a bookshop shelves them (Austen, Brontë, Clarke, du Maurier…). Particles like "du" and "van" stay with the surname, and "Surname, First" names are used as written. Before, it sorted by first name, which looked out of order.
+- **Scan chime.** A short, bright, rising chime plays the moment a barcode is read or a cover's words are read (not on search results or failures). It's four bell notes climbing an E major arpeggio to a ringing high E, about half a second, the shape games use for a reward. It's made with Web Audio in `js/sound.js`, so there is no sound file. It plays alongside her music rather than pausing it, and follows the phone's silent switch. The guide has no sound rules, so this is new.
 - **Celebration waits for a tap.** It no longer moves on by itself. "Tap to continue" stays until she taps (or presses Enter or Space). Taps in the first 0.7 seconds are ignored, so the tap that added the book can't skip it. The tap plays the same ripple as the start-up screen (`js/ripple.js`) while the cover flies to its shelf.
 
 ## Components the guide doesn't specify

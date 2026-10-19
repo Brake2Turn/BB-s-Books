@@ -101,8 +101,19 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
   const after = await q.evaluate(async () => {
     const db = await import('/js/db.js');
     const books = await db.getAll();
-    return { books, keys: await db.snapshotKeys(), last: await db.getMeta('lastSnapshot'), shown: document.querySelector('[data-count]').textContent };
+    return { books, keys: await db.snapshotKeys(), last: await db.getMeta('lastSnapshot'), shown: document.querySelector('[data-count]').textContent,
+      version: await db.getMeta('dataVersion'), reasons: (await db.listSnapshots()).map((c) => c.reason) };
   });
+  // Content v2 (data version 4): every book gains an empty 'format', statuses are untouched,
+  // and a copy is saved before the upgrade.
+  const statuses = Object.fromEntries(after.books.map((x) => [x.id, x.status]));
+  console.log('   data version:', after.version, '| format added to all:', after.books.every((x) => x.format === ''),
+    '| statuses kept:', JSON.stringify(statuses), '| copy before update:', after.reasons.includes('Before an app update'));
+  if (after.version !== 4) errors.push('scenario 6: data version not 4');
+  if (!after.books.every((x) => x.format === '')) errors.push('scenario 6: format not added');
+  if (statuses.h1 !== 'read' || statuses.h2 !== 'reading' || statuses.h3 !== 'want') errors.push('scenario 6: a status changed');
+  if (after.reasons.filter((r) => r === 'Before an app update').length < 2) errors.push('scenario 6: no copy saved before the v4 upgrade');
+  if (after.books.length !== 3) errors.push('scenario 6: books lost');
   const circe6 = after.books.find((x) => x.id === 'h1');
   const rebecca6 = after.books.find((x) => x.id === 'h2');
   console.log('6. her live library under the new code: books =', after.books.length, '| shown:', after.shown,
@@ -113,6 +124,42 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
   const again = await q.evaluate(async () => (await (await import('/js/db.js')).snapshotKeys()).length);
   console.log('   after reopening: copies =', again, '(no new copy when nothing changed)');
   await ctx6.close();
+}
+
+// 7. Did not finish and audiobook books survive a backup and a merge restore, and a
+//    newer copy's format wins.
+{
+  const ctx7 = await b.newContext({ serviceWorkers: 'block', acceptDownloads: true });
+  await ctx7.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.getElementById('splash')?.remove()));
+  await ctx7.route('https://**', (r) => r.fulfill({ status: 404, body: '' }));
+  const q = await ctx7.newPage();
+  q.on('pageerror', (e) => errors.push('scenario 7: ' + e.message));
+  q.on('dialog', (d) => d.accept());
+  await q.goto('http://localhost:8123/');
+  await q.waitForTimeout(800);
+  await q.evaluate(async () => {
+    const db = await import('/js/db.js');
+    await db.put({ id: 'd1', title: 'Normal People', authors: ['Sally Rooney'], status: 'dnf', page: 96, pages: 273, format: '', addedAt: 1000, updatedAt: 1000 });
+    await db.put({ id: 'd2', title: 'Circe', authors: ['Madeline Miller'], status: 'read', format: 'physical', addedAt: 2000, updatedAt: 2000 });
+  });
+  await q.reload();
+  await q.waitForTimeout(800);
+  await q.click('.tab[data-go="profile"]');
+  const [dl7] = await Promise.all([q.waitForEvent('download'), q.click('#exportBtn')]);
+  const file = JSON.parse(await (await import('fs')).promises.readFile(await dl7.path(), 'utf8'));
+  const inFile = Object.fromEntries(file.books.map((x) => [x.id, `${x.status}/${x.format}`]));
+  // A newer copy of Circe says audiobook; an older copy of Normal People says finished.
+  writeFileSync(`${S}/backup7.json`, JSON.stringify({ app: 'bbs-books', books: [
+    { id: 'd2', title: 'Circe', authors: ['Madeline Miller'], status: 'read', format: 'audio', addedAt: 2000, updatedAt: Date.now() + 10000 },
+    { id: 'd1', title: 'Normal People', authors: ['Sally Rooney'], status: 'read', format: 'physical', addedAt: 1000, updatedAt: 1 },
+  ] }));
+  await q.setInputFiles('#importFile', `${S}/backup7.json`);
+  await q.waitForTimeout(800);
+  const merged = Object.fromEntries((await q.evaluate(async () => (await import('/js/db.js')).getAll())).map((x) => [x.id, `${x.status}/${x.format}/${x.page || 0}`]));
+  console.log('7. backup file:', JSON.stringify(inFile), '| after merge:', JSON.stringify(merged));
+  if (inFile.d1 !== 'dnf/' || inFile.d2 !== 'read/physical') errors.push('scenario 7: backup lost status or format');
+  if (merged.d1 !== 'dnf//96' || merged.d2 !== 'read/audio/0') errors.push('scenario 7: merge restore wrong');
+  await ctx7.close();
 }
 console.log('errors:', errors);
 await b.close();

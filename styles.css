@@ -829,6 +829,9 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .detail-author { margin-top: 6px; font-size: 14px; line-height: 18px; font-weight: 700; color: var(--ink-2); text-align: center; }
 .detail-meta { margin-top: 6px; text-align: center; font-variant-numeric: tabular-nums; }
 .status { justify-content: center; margin-top: 20px; }
+.format { justify-content: center; align-items: center; margin-top: 12px; }
+.format-label { font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-2); margin-right: 4px; }
+.format[hidden] { display: none; }
 .detail-stack { margin-top: 24px; }
 .blurb { white-space: pre-line; color: var(--ink); }
 .blurb.empty { color: var(--ink-2); }

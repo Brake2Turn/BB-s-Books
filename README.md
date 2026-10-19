@@ -12,14 +12,15 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | **Barcode scan** | Point the camera at the ISBN barcode on the back. The book's details and blurb come from Google Books and Open Library. |
 | **The right cover** | Covers are looked up by the exact ISBN on her copy (Amazon's image store, then Open Library, then Google), so the picture matches her edition. Below the found book is a row of every cover it might have: her edition first, then other editions from Open Library and Google, then **Take a photo** for her own copy. She taps one to use it. **Change cover** on a book's page brings the same choices back later. |
 | **Cover scan** | Take a photo of the front cover. The app cleans up the photo (contrast, light-on-dark lettering), reads the words on it on the phone itself, and ignores cover clutter like "Sunday Times bestseller". It then searches several ways and puts the best match first. The words it read stay editable in case it slipped. Her photo is used as the cover by default, since it's exactly her copy. |
+| **Scan chime** | A short, bright chime plays the moment a barcode or a cover is read. It mixes with music and follows the phone's silent switch. |
 | **Search by title** | In the scanner, for a book whose barcode won't scan. |
 | **Adding a book** | A sheet rises with the cover, title and author. The real cover fades in as it loads. **Add to library** starts a celebration: the cover springs up, confetti flies and the book's number is called out. Milestones (1st, 5th, 10th, 25th, 50th, 100th, then every 100th book) get gold confetti and a gold headline. It stays until she taps; then a ripple spreads from her finger and the cover lands in its spot on the shelf. **Not this one** goes back to the camera. |
 | **Genres** | Each book gets a genre from the book databases, tidied into a short list (Fantasy, Romance, Mystery & thriller, and so on). Filter by genre on Home, or change a book's genre on its page. |
 | **Use a photo instead** | Pick a photo of a barcode or cover rather than using the live camera. Handy on a laptop. |
-| **Home** | The library count, the book she's reading now (with progress), then every book on plain white shelves of three, with search and one row of dropdown filters: status (Reading / Want to read / Finished), genre and sort. Scanning a book twice won't add a duplicate. |
-| **Stats** | Short one-line rows: finished, reading, want to read, pages read, average rating, books added this month, top genre. |
+| **Home** | The library count, the book she's reading now (with progress), then every book on plain white shelves of three, with search and one row of dropdown filters: status (Reading / To be read / Finished / Did not finish), genre and sort (newest, title, author by surname, rating). Scanning a book twice won't add a duplicate. |
+| **Stats** | Short one-line rows: finished, reading, to be read, did not finish, audiobooks, pages read, average rating, books added this month, top genre. |
 | **Feedback** | A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
-| **Book page** | Large cover, blurb, Want to read / Reading / Finished, page progress, 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
+| **Book page** | Large cover, blurb, To be read / Reading / Finished / Did not finish, Physical or Audiobook for finished books, page progress (or where she stopped, for Did not finish), 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
 | **Back up / Restore** | On the Profile tab. **Back up library** opens the share sheet, so the file can go to iCloud Drive, Google Drive, Files, email or AirDrop (computers download it). **Add books from a backup** merges: it adds missing books and updates older copies, and never deletes anything. |
 | **Automatic copies** | The app keeps up to five copies of the whole library: one a day when something has changed, plus one before any app update that changes the data and before any restore. Any copy can be restored from Profile. |
 | **Offline** | Once opened, the app and the covers she's already seen keep working without signal. Looking up new books needs internet. |
@@ -97,6 +98,7 @@ Browser tests drive the real app in headless Chromium with Playwright. They use 
 | `scan-and-covers` | Barcode scan with the fake camera, edition cover, cover picker, duplicate guard |
 | `genres-and-celebration` | Genre mapping and filter, the add-to-library celebration and tap-to-continue |
 | `milestones` | Milestone wording and gold confetti, count on every tab |
+| `book-status` | To be read and Did not finish, Physical / Audiobook, author sort by surname, Stats rows, the scan chime on barcode and cover reads |
 | `home-and-feedback` | Search, filters, no profile button, feedback sending and failure |
 | `no-camera` | Clear message when there's no camera |
 | `start-screen` | Greeting by time of day, tap and Enter open the library |
@@ -118,6 +120,7 @@ js/covers.js          edition cover search, cover tiles and placeholders
 js/genres.js          turns database categories into a short genre list
 js/cover-picker.js    the row of possible covers (result sheet and book page)
 js/ripple.js          the tap ripple (start-up screen and celebration)
+js/sound.js           the scan chime (Web Audio, no sound file)
 js/icons.js           line icons
 js/demo.js            sample shelf for ?demo
 js/db.js              on-device storage (IndexedDB)

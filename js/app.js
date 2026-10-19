@@ -32,6 +32,7 @@ const els = {
   dMeta: $('#dMeta'),
   dBlurb: $('#dBlurb'),
   status: $('.status'),
+  format: $('.format'),
   progressCard: $('#progressCard'),
   dTrack: $('#dTrack'),
   dProgress: $('#dProgress'),
@@ -72,6 +73,23 @@ let picker = null; // cover picker on the book page, while open
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const authorLine = (b) => (b.authors || []).join(', ');
+
+/**
+ * Sort key for the first author, surname first, as a bookshop files them:
+ * "Daphne du Maurier" files as "du Maurier Daphne", "Austen, Jane" stays as it is.
+ * Books with no author go to the end.
+ */
+function authorKey(b) {
+  const name = (b.authors?.[0] || '').trim();
+  if (!name) return '\uffff';
+  if (name.includes(',')) return name;
+  const words = name.split(/\s+/);
+  while (words.length > 1 && /^(jr|sr|ii|iii|iv|phd)\.?$/i.test(words[words.length - 1])) words.pop();
+  let i = words.length - 1;
+  while (i > 1 && /^(de|du|da|del|della|der|di|la|le|van|von|st\.?)$/i.test(words[i - 1])) i--;
+  return [...words.slice(i), ...words.slice(0, i)].join(' ');
+}
+const byName = (a, b) => a.localeCompare(b, 'en-GB', { sensitivity: 'base' });
 const plural = (n, one, many = `${one}s`) => (n === 1 ? one : many);
 const fmt = (n) => n.toLocaleString('en-GB');
 
@@ -118,6 +136,12 @@ function progressOf(book) {
   const pages = Number(book.pages) || 0;
   const page = Math.min(Number(book.page) || 0, pages || Infinity);
   if (book.status === 'read') return { pct: 100, text: 'Finished' };
+  if (book.status === 'dnf') {
+    if (!page) return { pct: 0, text: 'Note where you stopped, if you like' };
+    if (!pages) return { pct: 0, text: `Stopped on page ${fmt(page)}` };
+    const pct = Math.round((page / pages) * 100);
+    return { pct, text: `Stopped at ${pct}% · ${fmt(page)} of ${fmt(pages)} pages` };
+  }
   if (!pages) return { pct: 0, text: page ? `On page ${fmt(page)}` : 'Pick up where you left off' };
   if (!page) return { pct: 0, text: 'Not started' };
   const pct = Math.round((page / pages) * 100);
@@ -222,7 +246,7 @@ function renderHome() {
   const cmp = {
     added: byRecent,
     title: (a, b) => a.title.localeCompare(b.title),
-    author: (a, b) => authorLine(a).localeCompare(authorLine(b)) || a.title.localeCompare(b.title),
+    author: (a, b) => byName(authorKey(a), authorKey(b)) || byName(a.title, b.title),
     rating: (a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
   }[els.sort.value];
   const list = books
@@ -264,7 +288,7 @@ function renderStats() {
   const finished = books.filter((b) => b.status === 'read');
   const count = (s) => books.filter((b) => b.status === s).length;
   const pagesRead = finished.reduce((t, b) => t + (Number(b.pages) || 0), 0)
-    + books.filter((b) => b.status === 'reading').reduce((t, b) => t + (Number(b.page) || 0), 0);
+    + books.filter((b) => b.status === 'reading' || b.status === 'dnf').reduce((t, b) => t + (Number(b.page) || 0), 0);
   const rated = books.filter((b) => b.rating);
   const avg = rated.length ? (rated.reduce((t, b) => t + b.rating, 0) / rated.length).toFixed(1) : null;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
@@ -272,7 +296,9 @@ function renderStats() {
   const rows = [
     ['Finished', fmt(finished.length)],
     ['Reading', fmt(count('reading'))],
-    ['Want to read', fmt(count('want'))],
+    ['To be read', fmt(count('want'))],
+    ['Did not finish', fmt(count('dnf'))],
+    ['Audiobooks', fmt(finished.filter((b) => b.format === 'audio').length)],
     ['Pages read', fmt(pagesRead)],
     ['Average rating', avg ? `${avg} of 5` : 'None yet'],
     ['This month', `${fmt(books.filter((b) => b.addedAt >= monthStart).length)} added`],
@@ -312,7 +338,7 @@ async function load() {
 
 // Bump when the shape of a book record changes. Older records are upgraded in normaliseBook,
 // after a safety copy of the library is taken.
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 const KEEP_SNAPSHOTS = 5; // each copy includes any cover photos, so keep a few, not dozens
 
 /**
@@ -329,7 +355,8 @@ function normaliseBook(b) {
     published: '',
     pages: null,
     page: 0,
-    status: '',
+    status: '', // '' | 'want' (shown as "To be read") | 'reading' | 'read' (Finished) | 'dnf' (Did not finish)
+    format: '', // how a finished book was read: '' | 'physical' | 'audio'
     rating: 0,
     review: '',
     ...b,
@@ -459,6 +486,7 @@ async function saveBook(data) {
     genre: data.genre || '',
     page: 0,
     status: '',
+    format: '',
     rating: 0,
     review: '',
     addedAt: Date.now(),
@@ -510,7 +538,9 @@ function renderStars() {
 
 function renderStatus() {
   els.status.querySelectorAll('[data-status]').forEach((b) => b.setAttribute('aria-pressed', String(current.status === b.dataset.status)));
-  els.progressCard.hidden = current.status !== 'reading';
+  els.progressCard.hidden = current.status !== 'reading' && current.status !== 'dnf';
+  els.format.hidden = current.status !== 'read';
+  els.format.querySelectorAll('[data-format]').forEach((b) => b.setAttribute('aria-pressed', String(current.format === b.dataset.format)));
   const p = progressOf(current);
   setProgress(els.dTrack, p.pct);
   els.dProgress.textContent = p.text;
@@ -565,6 +595,15 @@ els.status.addEventListener('click', async (e) => {
   if (!b || !current) return;
   const status = current.status === b.dataset.status ? '' : b.dataset.status;
   current = await saveRecord({ ...current, status, readingAt: status === 'reading' ? Date.now() : current.readingAt });
+  renderStatus();
+  render();
+});
+
+els.format.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-format]');
+  if (!b || !current) return;
+  const format = current.format === b.dataset.format ? '' : b.dataset.format;
+  current = await saveRecord({ ...current, format });
   renderStatus();
   render();
 });

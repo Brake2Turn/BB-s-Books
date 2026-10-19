@@ -4,6 +4,7 @@ import * as scanner from './scanner.js';
 import { coverEl } from './covers.js';
 import { coverPicker } from './cover-picker.js';
 import { ripple } from './ripple.js';
+import * as sound from './sound.js';
 
 const $ = (sel) => document.querySelector(sel);
 const dlg = $('#scanner');
@@ -265,6 +266,7 @@ async function handleIsbn(isbn) {
   busy = true;
   els.frame.classList.add('locked');
   haptic(10);
+  sound.playScan();
   setStatus('Looking it up…');
   const s = session;
   try {
@@ -294,6 +296,7 @@ async function readCover(canvas) {
       throw new Error('We couldn’t make out the words. Try again in better light, or search by title.');
     }
     if (s !== session) return;
+    sound.playScan();
     setStatus('Searching…');
     const items = await lookup.searchCover(reading);
     if (s !== session) return; // closed while searching
@@ -336,6 +339,7 @@ els.shutter.addEventListener('click', async () => {
 els.photoInput.addEventListener('change', async () => {
   const file = els.photoInput.files[0];
   els.photoInput.value = '';
+  sound.unlock();
   if (!file || busy) return;
   busy = true;
   scanner.stopBarcodeLoop();
@@ -627,6 +631,7 @@ async function addToLibrary() {
 /** Open the scanner. Pass onPhoto to just take a photo of a cover (e.g. replacing one). */
 export async function open(opts = {}) {
   const s = ++session;
+  sound.unlock(); // still inside the tap that opened the scanner, so the chime is allowed later
   found = null;
   onPhoto = opts.onPhoto || null;
   closeSheets();

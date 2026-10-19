@@ -66,8 +66,9 @@
             <select id="statusFilter">
               <option value="">All books</option>
               <option value="reading">Reading</option>
-              <option value="want">Want to read</option>
+              <option value="want">To be read</option>
               <option value="read">Finished</option>
+              <option value="dnf">Did not finish</option>
             </select>
             <i data-icon="chevron"></i>
           </label>
@@ -252,9 +253,15 @@
       </div>
 
       <div class="chips tint-chips status" role="group" aria-label="Reading">
-        <button class="chip" data-status="want" aria-pressed="false">Want to read</button>
+        <button class="chip" data-status="want" aria-pressed="false">To be read</button>
         <button class="chip" data-status="reading" aria-pressed="false">Reading</button>
         <button class="chip" data-status="read" aria-pressed="false">Finished</button>
+        <button class="chip" data-status="dnf" aria-pressed="false">Did not finish</button>
+      </div>
+      <div class="chips tint-chips format" role="group" aria-labelledby="formatLabel" hidden>
+        <span id="formatLabel" class="format-label">Read as</span>
+        <button class="chip" data-format="physical" aria-pressed="false">Physical</button>
+        <button class="chip" data-format="audio" aria-pressed="false">Audiobook</button>
       </div>
 
       <div class="stack detail-stack">
