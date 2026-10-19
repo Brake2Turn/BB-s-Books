@@ -31,10 +31,10 @@ The camera only works on a secure (`https://`) address, so the app needs to be h
 **GitHub Pages** (free for public repos; private repos need a paid GitHub plan):
 
 1. On GitHub, open **Settings → Pages**.
-2. Under *Build and deployment*, pick **Deploy from a branch**, choose the live branch and `/ (root)`, then save.
+2. Under *Build and deployment*, pick **Deploy from a branch**, choose `main` and `/ (root)`, then save.
 3. After a minute the site appears at `https://<your-username>.github.io/BB-s-Books/`.
 
-**This app is live** at https://brake2turn.github.io/BB-s-Books/, served from the branch `claude/happy-fermi-c9vv82`. Anything pushed to that branch reaches BB's phone within a few minutes. See *Branches and updates* below.
+**This app is live** at https://brake2turn.github.io/BB-s-Books/, served from the `main` branch. Anything pushed to `main` reaches BB's phone within a few minutes. See *Branches and updates* below.
 
 **Netlify or Cloudflare Pages** also work if you'd rather keep the repo private. Point them at this repo and leave the build command empty.
 
@@ -74,13 +74,13 @@ npx http-server -p 8080 .
 
 BB is using the app and her library is on her phone, so updates follow a simple routine:
 
-1. **Work on a feature branch**, made from the live branch (`claude/happy-fermi-c9vv82`). Pushing a feature branch changes nothing on her phone.
+1. **Work on a feature branch**, made from `main`. Pushing a feature branch changes nothing on her phone.
 2. **Test locally** with `npx http-server -p 8080 .`, using `/?demo` for a sample shelf, and run `tests/run-all.sh`.
-3. **Go live** by merging the feature branch into the live branch, only once it's tested and the owner has said yes. GitHub Pages republishes in a minute or two. Her phone picks up the new code the next time she opens the app (the service worker's `VERSION` in `sw.js` must be bumped for that).
+3. **Go live** by merging the feature branch into `main`, only once it's tested and the owner has said yes. GitHub Pages republishes in a minute or two. Her phone picks up the new code the next time she opens the app (the service worker's `VERSION` in `sw.js` must be bumped for that).
 
 Her books are never part of a deploy: they live in her phone's browser storage, tied to the address. Code changes can't remove them as long as the address stays the same and database changes stay additive (see `CLAUDE.md`).
 
-**Optional: make `main` the live branch.** `main` is currently behind. To switch: merge the live branch into `main`, then in **Settings → Pages** change the branch to `main`. The address stays the same, so her library is unaffected. After that, feature branches come off `main` and merge back into it.
+`main` became the live branch in October 2026. Before that, the app was published from `claude/happy-fermi-c9vv82`, which holds the same code.
 
 ## Tests
 

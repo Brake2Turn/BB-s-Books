@@ -36,10 +36,9 @@ Where the guide is silent (camera, sheets, the book page, motion), follow `DESIG
 
 ## Branches and deploying (a real user is on the live app)
 
-- **Live branch:** GitHub Pages serves `claude/happy-fermi-c9vv82` at https://brake2turn.github.io/BB-s-Books/. Every push to it reaches BB's phone within minutes. `main` is older and not live.
-- **Work on a feature branch** made from the live branch (for example `feature/<topic>`), unless the session names a different one. Never push to the live branch or `main` without the owner's explicit OK. Don't open pull requests unless asked.
-- **Going live** = merging the tested feature branch into the live branch, with the owner's OK. Bump `VERSION` in `sw.js` in any change to shipped files, or phones keep the old cached code.
-- **Optional move to `main`:** merge the live branch into `main`, then the owner switches **Settings → Pages** to `main`. Same address, so her library is unaffected. Only do this when the owner asks; afterwards update this section and the README.
+- **Live branch: `main`.** GitHub Pages publishes `main` at https://brake2turn.github.io/BB-s-Books/. Every push to `main` reaches BB's phone within minutes. (`claude/happy-fermi-c9vv82` was the original build branch and published the app until October 2026. It holds the same code as `main`. Don't build on it, and don't delete it until Settings → Pages is confirmed to be on `main`.)
+- **Work on a feature branch** made from `main` (for example `feature/<topic>`), unless the session names a different one. Never push to `main` without the owner's explicit OK. Don't open pull requests unless asked.
+- **Going live** = merging the tested feature branch into `main`, with the owner's OK. Bump `VERSION` in `sw.js` in any change to shipped files, or phones keep the old cached code.
 
 ## Tests
 
