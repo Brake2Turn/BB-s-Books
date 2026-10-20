@@ -62,12 +62,14 @@ for (const existing of [4, 3]) {
 // 3. Count in the top right of every tab.
 {
   const { ctx, p } = await setup(6);
-  for (const tab of ['home', 'stats', 'feedback', 'profile']) {
-    await p.click(`.tab[data-go="${tab}"]`);
+  for (const tab of ['home', 'games', 'feedback', 'profile', 'stats', 'backup', 'appearance', 'settings']) {
+    // The last four open from Profile.
+    if (['stats', 'backup', 'appearance', 'settings'].includes(tab)) { await p.click('.tab[data-go="profile"]'); await p.click(`[data-go="${tab}"]`); }
+    else await p.click(`.tab[data-go="${tab}"]`);
     await p.waitForTimeout(150);
     const c = await p.locator(`[data-screen="${tab}"] .header-count`).innerText();
     console.log(`  ${tab}: "${c.replace(/\n/g, ' ')}"`);
-    if (tab === 'stats' || tab === 'feedback') await p.screenshot({ path: `${S}/H-${tab}.png` });
+    if (tab === 'stats' || tab === 'games') await p.screenshot({ path: `${S}/H-${tab}.png` });
   }
   await ctx.close();
 }

@@ -61,7 +61,7 @@ await p.selectOption('#dGenre', 'Romance');
 await p.click('#detail [data-close]');
 const o2 = (await p.evaluate(async () => (await import('/js/db.js')).getAll())).find((x) => x.id === 'o2');
 console.log('edited genre:', o2.genre);
-await p.click('.tab[data-go="stats"]');
+await p.click('.tab[data-go="profile"]'); await p.click('[data-go="stats"]');
 console.log('stats:', (await p.locator('.stat').allTextContents()).join(' | '));
 console.log('errors:', errors);
 await b.close();

@@ -52,3 +52,23 @@ export function playScan() {
     bell(2637.0, t + 0.18, { gain: 0.2, length: 0.6 });
   } catch { /* sound is a nicety; never let it break a scan */ }
 }
+
+/** A soft, short tick for each slice that passes the wheel's pointer. */
+export function tick() {
+  if (!ctx || ctx.state === 'closed') return;
+  try {
+    const t = ctx.currentTime + 0.005;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.09, t + 0.003);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    out.connect(ctx.destination);
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(2200, t);
+    osc.frequency.exponentialRampToValueAtTime(1400, t + 0.04);
+    osc.connect(out);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  } catch { /* never let a sound break the game */ }
+}

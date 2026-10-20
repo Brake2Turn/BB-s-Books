@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v14';
+const VERSION = 'v15';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 const MAX_COVERS = 400; // oldest covers are dropped beyond this, so the cache can't grow forever
@@ -21,6 +21,7 @@ const SHELL_FILES = [
   'js/cover-picker.js',
   'js/ripple.js',
   'js/sound.js',
+  'js/games.js',
   'fonts/fraunces-latin-full-normal.woff2',
   'fonts/fraunces-latin-full-italic.woff2',
   'fonts/nunito-sans-latin-wght-normal.woff2',
@@ -29,6 +30,7 @@ const SHELL_FILES = [
   'vendor/zxing/zxing-reader.js',
   'vendor/zxing/zxing_reader.wasm',
   'vendor/tesseract/tesseract.min.js',
+  'vendor/matter/matter.min.js',
 ];
 
 // Large text-recognition files are cached the first time a cover is scanned.

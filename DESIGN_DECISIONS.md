@@ -10,10 +10,15 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - a search field from the white-zone kit (white fill, `--outline`, pill)
   - one row of dropdown pills: status, genre and sort (see "Filter dropdowns instead of chips" below)
   - every book on shelf rows of three
-- **No profile button in the header.** It was removed at the owner's request, so the AppHeader is just the title. Backup lives on the Profile tab.
-- **Tabs:** Home, Stats, Scan (centre), Feedback, Profile, keeping the guide's four tabs around Scan.
-- **Stats tab:** a glass card of short one-line rows (see "Stats without the hero" below).
-- **Profile tab:** the library count, then a glass card with backup, restore and automatic copies (see "Profile data card" below).
+- **No profile button in the header.** It was removed at the owner's request, so the AppHeader is just the title. Backup lives under Profile.
+- **Tabs:** Home, Games, Scan (centre), Feedback, Profile, keeping the guide's four tabs around Scan. Games took Stats' place at the owner's request, and Stats moved into Profile.
+- **Profile tab:** a hub. Under the header, one glass card of rows (Stats, Backup, Appearance, Settings), each with its icon and a chevron, split by the card's hairline like the Stats rows.
+  - Each row opens its own screen with the same frame: a tint back button at the top left (as on the book page), then the title with the count on its row. The Profile tab stays lit on all four.
+  - **Stats:** a glass card of short one-line rows (see "Stats without the hero" below).
+  - **Backup:** the old Profile cards: backup, restore and automatic copies (see "Profile data card" below).
+  - **Appearance:** the accent colour (see "Accent colours" below).
+  - **Settings:** empty for now, with "Nothing here yet."
+- **Games tab:** the header and count, a short intro line, then one glass card per game: a tint circle with the game's icon in the accent (a mark, not text), the name in Nunito Sans 16/700, a one-line caption, and a chevron. See "Games" below.
 - **Feedback tab:**
   - The header, with a short intro line where a count would be.
   - A glass card with a message box, an optional name field and a cobalt Send button.
@@ -58,13 +63,46 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
 - **Scan chime.** A short, bright, rising chime plays the moment a barcode is read or a cover's words are read (not on search results or failures). It's four bell notes climbing an E major arpeggio to a ringing high E, about half a second, the shape games use for a reward. It's made with Web Audio in `js/sound.js`, so there is no sound file. It plays alongside her music rather than pausing it, and follows the phone's silent switch. The guide has no sound rules, so this is new.
 - **Celebration waits for a tap.** It no longer moves on by itself. "Tap to continue" stays until she taps (or presses Enter or Space). Taps in the first 0.7 seconds are ignored, so the tap that added the book can't skip it. The tap plays the same ripple as the start-up screen (`js/ripple.js`) while the cover flies to its shelf.
 
+- **Accent colours.** The owner asked for a choice of accent. Profile → Appearance offers five: Cobalt (the guide's own, and the default), Berry `#B02A5E`, Plum `#7A45C2`, Forest `#2A7049` and Teal `#1B6F75`.
+  - The "one accent" rule still holds: there is only ever one accent at a time, used where cobalt was.
+  - Each choice changes `--accent`, `--accent-rgb` (for the accent-tinted shadows) and its own pale `--tint` and `--tint-border`. Those overrides live in `styles.css` under `:root[data-accent="…"]`.
+  - Every choice passes AA both ways: white text on the accent is 5.2:1 to 6.3:1, and accent text on its tint is 5.0:1 to 5.4:1.
+  - The choice is kept on the phone (`localStorage`), not in the library. It isn't part of a backup.
+  - Swatches are 36px circles with a white edge, a label under each, and the guide's focus ring (2px in the swatch's colour, 3px offset) on the chosen one.
+  - Gold stays for milestones only, and the washes don't change.
+- **Loaned-out dot on covers.** The guide says no badges on covers, and the owner asked for one exception: a loaned-out book gets a small dot at the cover's top right (`--size-dot-loan`, 12px, accent fill, 2px white edge, the chip shadow). It sits just outside the corner so it never covers the art. It also shows on the book page's cover. Screen readers hear "loaned out" in the book's name.
+- **Lending on the book page.** A glass card after the rating: "Lending" eyebrow, then two tint chips, "On my shelf" and "Loaned out".
+  - When the book is loaned out, an optional "Who has it?" field and a caption ("With Sam since 20 October") appear.
+  - Putting the book back on the shelf clears the name.
+  - Home's "Show" menu gains "Loaned out", and sort gains "Loaned out" (lent books first, most recently lent at the top). Stats gains a "Loaned out" row.
+
+## Games
+
+- **Spin the wheel.** It opens on its own full screen, like the book page: washes, white zone, back button, then "Spin the wheel" in the app-title style and an intro line ("5 books you haven't read yet are on the wheel").
+  - The wheel holds every unread book: To be read, plus books with no status. A book nobody has marked might be unread, so it's included rather than left out.
+  - Slices use the four washes and the placeholder cover tones, with ink titles along each slice, truncated with an ellipsis. Past 24 books the slices are too thin to label, so only the title under the pointer shows, in Fraunces 21 below the wheel. That line always shows the book the pointer is on.
+  - The pointer is an accent triangle at the top, and the hub is white with an accent dot.
+  - "Spin" is the screen's one primary button. The wheel turns five or six times and eases out over about five seconds, ticking softly at each slice (`tick()` in `js/sound.js`). It lands at a random point inside a random slice, so every book is equally likely.
+  - The pick appears the way a scanned book does: the cover springs in with a little tilt and the shine sweeps across it, under a "Your next read" eyebrow, with the title in Fraunces 36 and the author below. The scan chime plays. There's no confetti, because the add-to-library celebration stays the only celebration.
+  - Tapping the book opens its book page. "Spin again" spins straight away.
+  - Reduce Motion skips the spin and goes straight to the pick.
+  - With nothing unread, the wheel is hidden and the intro says so.
+- **Book shower.** Every cover in the library tumbles down over the screen she is on.
+  - The covers are real physics bodies (matter.js 0.20, MIT, bundled in `vendor/matter/` and loaded only when the shower starts). They fall in a random order from random spots, spinning, knocking into each other and piling on the bottom edge.
+  - Each cover rests on the pile for about four seconds, then drops through and falls off the screen. So a big library never overflows the screen, and the shower ends by itself once every cover has fallen.
+  - Covers are sized to the library: up to 96px wide for a small one, down to 48px.
+  - A "Tap to stop" note shows for the first few seconds. Any tap, or Escape, ends it with a fade.
+  - Reduce Motion shows up to 40 covers fading in where they'd land, then fading away.
+  - This is the owner's request, and it's a game she starts herself, so it's motion she chose.
+
 ## Components the guide doesn't specify
 
 - **Primary button** (Add to library, Save review): built like the scan button. Cobalt pill, 52px tall, white 60% border, `--shadow-scan`, Nunito Sans 14/700. It is the screen's one cobalt action, as the guide asks.
 - **Rating stars:** cobalt fill when chosen (a mark, not text), `--ink-2` outline otherwise, 44px targets.
 - **Page inputs, review and feedback boxes:** the selected glass chip's fill, border and highlight. The review box uses a 16px radius: a pill can't hold several lines, and 24px looked too round at that size.
 - **Toast:** a selected glass chip ("Added to your library").
-- **Cover picker:** a sideways row of BookCover tiles at 56px wide (2:3, `--radius-cover`, `--shadow-cover-sm`).
+- **Cover picker:** tapping a cover changes it at once using the small version already on screen, then the sharp version replaces it quietly once it loads. The row only re-marks the chosen tile and is never redrawn, so it stays where she scrolled it. (It used to wait for the large image, then redraw and jump back to the start.)
+- **Cover picker layout:** a sideways row of BookCover tiles at 56px wide (2:3, `--radius-cover`, `--shadow-cover-sm`).
   - The chosen tile gets the guide's focus treatment, a 2px cobalt ring with a 3px offset.
   - The last tile, "Take a photo", is a tint tile with a cobalt camera icon.
   - While covers are found, placeholder tiles pulse in the cover-loading tone.

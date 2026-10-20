@@ -203,11 +203,13 @@ function setResultCover(book, reveal) {
     els.rCover.replaceChildren(el);
     return;
   }
-  // Reveal: the new cover fades in over the old one, then takes its place.
+  // Reveal: the new cover fades in over the old one, then takes its place. Only the covers that
+  // were there before this one are cleared, so two quick reveals (small, then sharp) both land.
+  const before = [...els.rCover.children];
   el.classList.add('over');
   els.rCover.append(el);
   const settle = () => setTimeout(() => {
-    [...els.rCover.children].forEach((c) => { if (c !== el) c.remove(); });
+    before.forEach((c) => c.remove());
     el.classList.remove('over');
   }, 260);
   img.addEventListener('load', settle, { once: true });

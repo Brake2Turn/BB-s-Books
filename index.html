@@ -69,6 +69,7 @@
               <option value="want">To be read</option>
               <option value="read">Finished</option>
               <option value="dnf">Did not finish</option>
+              <option value="loaned">Loaned out</option>
             </select>
             <i data-icon="chevron"></i>
           </label>
@@ -84,6 +85,7 @@
               <option value="title">Title</option>
               <option value="author">Author</option>
               <option value="rating">Rating</option>
+              <option value="loaned">Loaned out</option>
             </select>
             <i data-icon="chevron"></i>
           </label>
@@ -92,15 +94,25 @@
       </div>
     </section>
 
-    <!-- Stats -->
-    <section class="screen" data-screen="stats" aria-label="Stats" hidden>
+    <!-- Games: little things to do with her books -->
+    <section class="screen" data-screen="games" aria-label="Games" hidden>
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
-        <h1 class="app-title">Stats</h1>
+        <h1 class="app-title">Games</h1>
         <p class="header-count"><b data-count></b><span data-count-unit></span></p>
       </header>
+      <p class="screen-intro">Something fun to do with your books.</p>
       <div class="stack">
-        <div id="statsCard" class="glass-card stat-list"></div>
+        <button class="glass-card game-card" data-game="spinner">
+          <span class="game-icon"><i data-icon="wheel"></i></span>
+          <span class="game-text"><span class="game-name">Spin the wheel</span><span class="caption">The wheel picks your next read from the books you haven’t read yet.</span></span>
+          <i data-icon="forward" class="row-go"></i>
+        </button>
+        <button class="glass-card game-card" data-game="shower">
+          <span class="game-icon"><i data-icon="rain"></i></span>
+          <span class="game-text"><span class="game-name">Book shower</span><span class="caption">Every cover in your library tumbles down the screen.</span></span>
+          <i data-icon="forward" class="row-go"></i>
+        </button>
       </div>
     </section>
 
@@ -134,6 +146,41 @@
         <p class="header-count"><b data-count></b><span data-count-unit></span></p>
       </header>
       <div class="stack">
+        <nav class="glass-card hub" aria-label="Profile">
+          <button class="row-btn hub-row" data-go="stats"><i data-icon="stats"></i><span>Stats</span><i data-icon="forward" class="row-go"></i></button>
+          <button class="row-btn hub-row" data-go="backup"><i data-icon="download"></i><span>Backup</span><i data-icon="forward" class="row-go"></i></button>
+          <button class="row-btn hub-row" data-go="appearance"><i data-icon="palette"></i><span>Appearance</span><i data-icon="forward" class="row-go"></i></button>
+          <button class="row-btn hub-row" data-go="settings"><i data-icon="settings"></i><span>Settings</span><i data-icon="forward" class="row-go"></i></button>
+        </nav>
+      </div>
+    </section>
+
+    <!-- Profile → Stats -->
+    <section class="screen sub-screen" data-screen="stats" aria-label="Stats" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="sub-top">
+        <button class="round-btn" data-go="profile" aria-label="Back to Profile"><i data-icon="back"></i></button>
+      </div>
+      <header class="app-header">
+        <h1 class="app-title">Stats</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
+      </header>
+      <div class="stack">
+        <div id="statsCard" class="glass-card stat-list"></div>
+      </div>
+    </section>
+
+    <!-- Profile → Backup -->
+    <section class="screen sub-screen" data-screen="backup" aria-label="Backup" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="sub-top">
+        <button class="round-btn" data-go="profile" aria-label="Back to Profile"><i data-icon="back"></i></button>
+      </div>
+      <header class="app-header">
+        <h1 class="app-title">Backup</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
+      </header>
+      <div class="stack">
         <div class="glass-card list-card">
           <p class="eyebrow"><i></i>Your library</p>
           <p id="storageNote" class="body-text"></p>
@@ -148,12 +195,48 @@
         </div>
       </div>
     </section>
+
+    <!-- Profile → Appearance -->
+    <section class="screen sub-screen" data-screen="appearance" aria-label="Appearance" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="sub-top">
+        <button class="round-btn" data-go="profile" aria-label="Back to Profile"><i data-icon="back"></i></button>
+      </div>
+      <header class="app-header">
+        <h1 class="app-title">Appearance</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
+      </header>
+      <div class="stack">
+        <div class="glass-card list-card">
+          <p class="eyebrow" id="accentLabel"><i></i>Accent colour</p>
+          <p class="body-text">For the scan button, highlights and dots across the app.</p>
+          <div id="accentPicker" class="swatches" role="radiogroup" aria-labelledby="accentLabel"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile → Settings -->
+    <section class="screen sub-screen" data-screen="settings" aria-label="Settings" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="sub-top">
+        <button class="round-btn" data-go="profile" aria-label="Back to Profile"><i data-icon="back"></i></button>
+      </div>
+      <header class="app-header">
+        <h1 class="app-title">Settings</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
+      </header>
+      <div class="stack">
+        <div class="glass-card list-card">
+          <p class="body-text">Nothing here yet.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- TabBar -->
   <nav class="tabbar" aria-label="Main">
     <button class="tab" data-go="home" aria-label="Home" aria-current="page"><i data-icon="home"></i><span class="tab-dot"></span></button>
-    <button class="tab" data-go="stats" aria-label="Stats"><i data-icon="stats"></i><span class="tab-dot"></span></button>
+    <button class="tab" data-go="games" aria-label="Games"><i data-icon="games"></i><span class="tab-dot"></span></button>
     <button id="scanBtn" class="scan-btn" aria-label="Scan a book"><i data-icon="scan"></i></button>
     <button class="tab" data-go="feedback" aria-label="Feedback"><i data-icon="feedback"></i><span class="tab-dot"></span></button>
     <button class="tab" data-go="profile" aria-label="Profile"><i data-icon="profile"></i><span class="tab-dot"></span></button>
@@ -290,6 +373,18 @@
           <div id="stars" class="stars" role="radiogroup" aria-label="Rating out of five"></div>
         </section>
 
+        <section id="loanCard" class="glass-card">
+          <p class="eyebrow"><i></i>Lending</p>
+          <div class="chips tint-chips loan-chips" role="group" aria-label="Lending">
+            <button class="chip" data-loan="home" aria-pressed="true">On my shelf</button>
+            <button class="chip" data-loan="out" aria-pressed="false">Loaned out</button>
+          </div>
+          <div id="loanDetails" class="loan-details" hidden>
+            <input id="dLoanTo" class="glass-input" type="text" placeholder="Who has it? (optional)" aria-label="Who has it" autocomplete="off">
+            <p id="dLoanSince" class="caption"></p>
+          </div>
+        </section>
+
         <section class="glass-card">
           <p class="eyebrow"><label for="dReview"><i></i>Your review</label></p>
           <textarea id="dReview" rows="6" placeholder="What stayed with you?"></textarea>
@@ -306,6 +401,40 @@
       </div>
     </div>
   </dialog>
+
+  <!-- Spin the wheel -->
+  <dialog id="spinner" class="detail game" aria-labelledby="spinTitle">
+    <div class="detail-scroll">
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="detail-top">
+        <button class="round-btn" data-close aria-label="Back to Games"><i data-icon="back"></i></button>
+      </div>
+      <h2 id="spinTitle" class="game-title">Spin the wheel</h2>
+      <p id="spinIntro" class="screen-intro game-intro"></p>
+      <div class="wheel-stage">
+        <div class="wheel-wrap">
+          <canvas id="wheel" class="wheel" aria-hidden="true"></canvas>
+          <span class="wheel-pointer" aria-hidden="true"></span>
+          <span class="wheel-hub" aria-hidden="true"></span>
+        </div>
+        <p id="wheelNow" class="wheel-now" aria-hidden="true"></p>
+        <button id="spinBtn" class="primary-btn spin-btn">Spin</button>
+      </div>
+      <div id="spinPick" class="spin-pick" hidden>
+        <p class="eyebrow"><i></i>Your next read</p>
+        <button id="pickBook" class="pick-book">
+          <span class="pick-cover"></span>
+          <span class="pick-title"></span>
+          <span class="pick-author"></span>
+        </button>
+        <p class="caption">Tap the book to open it</p>
+        <button id="spinAgain" class="text-btn">Spin again</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Book shower: covers tumble down the screen -->
+  <div id="shower" class="shower" role="button" tabindex="0" aria-label="Book shower. Tap to stop." hidden></div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

@@ -20,13 +20,13 @@ const expect = (ok, what) => { if (!ok) errors.push(what); };
   // Wording: "To be read" everywhere, never "Want to read".
   const options = await p.locator('#statusFilter option').allTextContents();
   console.log('status filter:', options.join(' / '));
-  expect(options.join('|') === 'All books|Reading|To be read|Finished|Did not finish', 'status filter options wrong');
+  expect(options.join('|') === 'All books|Reading|To be read|Finished|Did not finish|Loaned out', 'status filter options wrong');
   expect(!(await p.content()).includes('Want to read'), '"Want to read" still on the page');
 
   // Author sort: A to Z by surname.
   await p.selectOption('#sort', 'author');
   await p.waitForTimeout(200);
-  const authors = await p.locator('#libraryShelves .book').evaluateAll((n) => n.map((x) => x.getAttribute('aria-label').split(', ').pop()));
+  const authors = await p.locator('#libraryShelves .book').evaluateAll((n) => n.map((x) => x.getAttribute('aria-label').replace(/, loaned out$/, '').split(', ').pop()));
   console.log('author sort:', authors.join(' · '));
   const surnames = ['Austen', 'Brontë', 'Clarke', 'du Maurier', 'Garmus', 'Ishiguro', 'Ishiguro', 'Miller', 'Miller', 'Morgenstern', 'Rooney', 'Tartt', 'Yanagihara', 'Zevin'];
   expect(authors.every((a, i) => a.endsWith(surnames[i])), 'author sort is not A to Z by surname');
@@ -76,7 +76,7 @@ const expect = (ok, what) => { if (!ok) errors.push(what); };
   await p.waitForTimeout(400);
 
   // Stats rows.
-  await p.click('.tab[data-go="stats"]');
+  await p.click('.tab[data-go="profile"]'); await p.click('[data-go="stats"]');
   await p.waitForTimeout(300);
   const stats = await p.locator('#statsCard .stat').evaluateAll((n) => n.map((x) => `${x.children[0].textContent}: ${x.children[1].textContent}`));
   console.log('stats:', stats.join(' | '));

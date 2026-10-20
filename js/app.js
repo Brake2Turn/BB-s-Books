@@ -7,6 +7,7 @@ import { GENRES } from './genres.js';
 import { genreFor } from './lookup.js';
 import { coverPicker } from './cover-picker.js';
 import { ripple } from './ripple.js';
+import * as games from './games.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -57,6 +58,11 @@ const els = {
   fbSend: $('#fbSend'),
   fbStatus: $('#fbStatus'),
   toast: $('#toast'),
+  loanCard: $('#loanCard'),
+  loanDetails: $('#loanDetails'),
+  dLoanTo: $('#dLoanTo'),
+  dLoanSince: $('#dLoanSince'),
+  accentPicker: $('#accentPicker'),
 };
 
 // Feedback is emailed by FormSubmit (formsubmit.co), which needs no server of our own.
@@ -70,6 +76,14 @@ let genre = ''; // '' = all genres, '-' = books with no genre yet
 let current = null; // book open on the book page
 let draftRating = 0;
 let picker = null; // cover picker on the book page, while open
+
+// Accent choices (Profile → Appearance). Values live in styles.css; cobalt is the guide's own.
+const ACCENTS = [['cobalt', 'Cobalt', '#2F5BD9'], ['berry', 'Berry', '#B02A5E'], ['plum', 'Plum', '#7A45C2'], ['forest', 'Forest', '#2A7049'], ['teal', 'Teal', '#1B6F75']];
+
+function applyAccent(name) {
+  if (!ACCENTS.some(([n]) => n === name) || name === 'cobalt') delete document.documentElement.dataset.accent;
+  else document.documentElement.dataset.accent = name;
+}
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const authorLine = (b) => (b.authors || []).join(', ');
@@ -155,11 +169,15 @@ function setProgress(track, pct) {
 
 // ---------- Screens ----------
 
+// Screens reached from Profile; the Profile tab stays lit while one is open.
+const PROFILE_SCREENS = ['stats', 'backup', 'appearance', 'settings'];
+
 function showScreen(name) {
   screen = name;
   els.screens.forEach((s) => { s.hidden = s.dataset.screen !== name; });
+  const tab = PROFILE_SCREENS.includes(name) ? 'profile' : name;
   els.tabs.forEach((t) => {
-    if (t.dataset.go === name) t.setAttribute('aria-current', 'page');
+    if (t.dataset.go === tab) t.setAttribute('aria-current', 'page');
     else t.removeAttribute('aria-current');
   });
   window.scrollTo(0, 0);
@@ -172,10 +190,19 @@ function bookTile(book) {
   const btn = document.createElement('button');
   btn.className = 'book';
   btn.dataset.id = book.id;
-  btn.setAttribute('aria-label', `${book.title}${book.authors?.length ? `, ${authorLine(book)}` : ''}`);
+  btn.setAttribute('aria-label', `${book.title}${book.authors?.length ? `, ${authorLine(book)}` : ''}${book.loaned ? ', loaned out' : ''}`);
   btn.append(coverEl(book));
+  if (book.loaned) btn.append(loanDot());
   btn.addEventListener('click', () => openDetail(book.id, btn.querySelector('.cover')));
   return btn;
+}
+
+/** The little dot at the top right of a loaned-out cover. */
+function loanDot() {
+  const dot = document.createElement('span');
+  dot.className = 'loan-dot';
+  dot.setAttribute('aria-hidden', 'true');
+  return dot;
 }
 
 /** ShelfRow: three covers on a ledge; the ledge stays full width on a partial row. */
@@ -203,7 +230,7 @@ function shelves(list, emptyText) {
 }
 
 const byRecent = (a, b) => b.addedAt - a.addedAt;
-const matches = (filter) => (b) => !filter || b.status === filter;
+const matches = (filter) => (b) => !filter || (filter === 'loaned' ? !!b.loaned : b.status === filter);
 
 function renderCounts() {
   const n = books.length;
@@ -248,7 +275,9 @@ function renderHome() {
     title: (a, b) => a.title.localeCompare(b.title),
     author: (a, b) => byName(authorKey(a), authorKey(b)) || byName(a.title, b.title),
     rating: (a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title),
-  }[els.sort.value];
+    // Loaned-out books first, most recently lent at the top; then the rest, newest first.
+    loaned: (a, b) => (!!b.loaned - !!a.loaned) || (b.loanedAt || 0) - (a.loanedAt || 0) || byRecent(a, b),
+  }[els.sort.value] || byRecent;
   const list = books
     .filter(matches(filter))
     .filter((b) => !genre || (genre === '-' ? !b.genre : b.genre === genre))
@@ -299,6 +328,7 @@ function renderStats() {
     ['To be read', fmt(count('want'))],
     ['Did not finish', fmt(count('dnf'))],
     ['Audiobooks', fmt(finished.filter((b) => b.format === 'audio').length)],
+    ['Loaned out', fmt(books.filter((b) => b.loaned).length)],
     ['Pages read', fmt(pagesRead)],
     ['Average rating', avg ? `${avg} of 5` : 'None yet'],
     ['This month', `${fmt(books.filter((b) => b.addedAt >= monthStart).length)} added`],
@@ -320,7 +350,8 @@ function render() {
   renderCounts();
   if (screen === 'home') renderHome();
   if (screen === 'stats') renderStats();
-  if (screen === 'profile') renderProfile();
+  if (screen === 'backup') renderBackup();
+  if (screen === 'appearance') renderAppearance();
 }
 
 async function load() {
@@ -357,6 +388,9 @@ function normaliseBook(b) {
     page: 0,
     status: '', // '' | 'want' (shown as "To be read") | 'reading' | 'read' (Finished) | 'dnf' (Did not finish)
     format: '', // how a finished book was read: '' | 'physical' | 'audio'
+    loaned: false, // lent to someone
+    loanedTo: '', // who has it (optional)
+    loanedAt: 0, // when it was lent
     rating: 0,
     review: '',
     ...b,
@@ -409,7 +443,28 @@ const librarySignature = (list) => `${list.length}:${Math.max(0, ...list.map((b)
 const dateLabel = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   + (new Date(t).toDateString() === new Date().toDateString() ? `, ${new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '');
 
-async function renderProfile() {
+/** Appearance: one swatch per accent colour. The choice is kept on this device. */
+function renderAppearance() {
+  const chosen = pref('bbs-accent') || 'cobalt';
+  els.accentPicker.replaceChildren(...ACCENTS.map(([name, label, hex]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(name === chosen));
+    b.style.setProperty('--swatch', hex);
+    b.innerHTML = '<i></i>';
+    b.append(label);
+    b.addEventListener('click', () => {
+      pref('bbs-accent', name);
+      applyAccent(name);
+      renderAppearance();
+    });
+    return b;
+  }));
+}
+
+async function renderBackup() {
   const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
   const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   els.storageNote.textContent = persisted
@@ -446,7 +501,7 @@ async function restoreSnapshot(copy) {
   await db.pruneSnapshots(KEEP_SNAPSHOTS + 1);
   books = await db.getAll();
   render();
-  renderProfile();
+  renderBackup();
   toast('Library restored');
 }
 
@@ -487,6 +542,9 @@ async function saveBook(data) {
     page: 0,
     status: '',
     format: '',
+    loaned: false,
+    loanedTo: '',
+    loanedAt: 0,
     rating: 0,
     review: '',
     addedAt: Date.now(),
@@ -548,11 +606,27 @@ function renderStatus() {
   els.dPages.value = current.pages || '';
 }
 
+/** Lending: on her shelf or loaned out, and who has it. */
+function renderLoan() {
+  const out = !!current.loaned;
+  els.loanCard.querySelectorAll('[data-loan]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.loan === 'out') === out)));
+  els.loanDetails.hidden = !out;
+  if (document.activeElement !== els.dLoanTo) els.dLoanTo.value = current.loanedTo || '';
+  const since = current.loanedAt ? new Date(current.loanedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }) : '';
+  const who = (current.loanedTo || '').trim();
+  els.dLoanSince.textContent = since ? `${who ? `With ${who}` : 'Loaned out'} since ${since}` : '';
+}
+
+/** The big cover on the book page, with the loan dot when it's lent out. */
+function renderDetailCover() {
+  els.dCover.replaceChildren(coverEl(current), ...(current.loaned ? [loanDot()] : []));
+}
+
 function openDetail(id, originEl) {
   current = books.find((b) => b.id === id);
   if (!current) return;
   const c = current;
-  els.dCover.replaceChildren(coverEl(c));
+  renderDetailCover();
   els.dTitle.textContent = c.title;
   els.dAuthor.textContent = authorLine(c) || 'Author unknown';
   els.dMeta.textContent = [c.published && c.published.slice(0, 4), c.pages && `${fmt(c.pages)} pages`, c.isbn && `ISBN ${c.isbn}`].filter(Boolean).join(' · ');
@@ -564,6 +638,7 @@ function openDetail(id, originEl) {
   draftRating = c.rating || 0;
   renderStars();
   renderStatus();
+  renderLoan();
   els.dReview.value = c.review || '';
   els.saved.textContent = c.reviewedAt && c.review ? `Saved ${new Date(c.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : '';
   closeCoverPicker();
@@ -607,6 +682,28 @@ els.format.addEventListener('click', async (e) => {
   renderStatus();
   render();
 });
+
+els.loanCard.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-loan]');
+  if (!b || !current) return;
+  const out = b.dataset.loan === 'out';
+  if (out === !!current.loaned) return;
+  current = await saveRecord({ ...current, loaned: out, loanedAt: out ? Date.now() : 0, loanedTo: out ? current.loanedTo || '' : '' });
+  renderLoan();
+  renderDetailCover();
+  render();
+  if (out) els.dLoanTo.focus({ preventScroll: true });
+});
+
+let loanTimer = 0;
+async function saveLoanTo() {
+  clearTimeout(loanTimer);
+  if (!current || (current.loanedTo || '') === els.dLoanTo.value.trim()) return;
+  current = await saveRecord({ ...current, loanedTo: els.dLoanTo.value.trim() });
+  renderLoan();
+}
+els.dLoanTo.addEventListener('input', () => { clearTimeout(loanTimer); loanTimer = setTimeout(saveLoanTo, 600); });
+els.dLoanTo.addEventListener('change', saveLoanTo);
 
 els.dGenre.addEventListener('change', async () => {
   if (!current) return;
@@ -656,11 +753,13 @@ function openCoverPicker() {
   picker = coverPicker(els.coverPickerHost, book, {
     selected: () => (current ? current.cover : ''),
     photo: () => '',
-    onPick: async (url) => {
+    onPick: async (url, { upgrade } = {}) => {
       current = await saveRecord({ ...current, cover: url });
-      els.dCover.replaceChildren(coverEl(current));
+      // The sharper version arrives a moment later: swap the image without re-animating.
+      if (upgrade) els.dCover.querySelector('img')?.setAttribute('src', url);
+      else renderDetailCover();
       render();
-      toast('Cover updated');
+      if (!upgrade) toast('Cover updated');
     },
     onTakePhoto: () => photographCover(book.id),
   });
@@ -711,7 +810,7 @@ async function exportLibrary() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   await db.setMeta('lastBackup', Date.now());
-  renderProfile();
+  renderBackup();
   toast('Backup saved');
 }
 
@@ -748,7 +847,7 @@ async function importLibrary(file) {
   await db.putMany(updates);
   books = await db.getAll();
   render();
-  renderProfile();
+  renderBackup();
   toast(added ? `Added ${fmt(added)} ${plural(added, 'book')}` : 'Library updated');
 }
 
@@ -843,9 +942,12 @@ const washes = $('#washTemplate').content;
 initSplash();
 document.body.prepend(washes.cloneNode(true));
 els.detail.prepend(washes.cloneNode(true));
+$('#spinner').prepend(washes.cloneNode(true));
 hydrateIcons();
 scan.init({ findDuplicate, saveBook, placeIncoming, landed, openDetail, toast, count: () => books.length });
 $('#scanner .celebrate').prepend(washes.cloneNode(true));
+games.init({ books: () => books, openDetail, toast });
+applyAccent(pref('bbs-accent'));
 
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
@@ -867,6 +969,7 @@ els.changeCoverBtn.addEventListener('click', openCoverPicker);
 els.dReview.addEventListener('input', () => { els.saved.textContent = 'Not saved yet'; });
 els.detail.addEventListener('close', () => {
   closeCoverPicker();
+  saveLoanTo();
   // Never lose a half-written review because she closed the book without tapping Save.
   if (current && els.dReview.value.trim() !== (current.review || '')) saveDetail(true).then(() => toast('Review saved'));
 });

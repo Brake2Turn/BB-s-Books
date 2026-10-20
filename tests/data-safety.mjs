@@ -42,7 +42,7 @@ const backup = { app: 'bbs-books', books: [
   { id: 'a2', title: 'Rebecca', authors: ['Daphne du Maurier'], rating: 1, addedAt: 2000, updatedAt: 1 },
 ] };
 writeFileSync(`${S}/backup.json`, JSON.stringify(backup));
-await p.click('.tab[data-go="profile"]');
+await p.click('.tab[data-go="profile"]'); await p.click('[data-go="backup"]');
 await p.setInputFiles('#importFile', `${S}/backup.json`);
 await p.waitForTimeout(800);
 state = await p.evaluate(async () => { const db = await import('/js/db.js'); return await db.getAll(); });
@@ -111,6 +111,9 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
     '| statuses kept:', JSON.stringify(statuses), '| copy before update:', after.reasons.includes('Before an app update'));
   if (after.version !== 4) errors.push('scenario 6: data version not 4');
   if (!after.books.every((x) => x.format === '')) errors.push('scenario 6: format not added');
+  // Lending fields arrive empty: nothing is marked as loaned out by the upgrade.
+  console.log('   lending fields added, all on the shelf:', after.books.every((x) => x.loaned === false && x.loanedTo === '' && x.loanedAt === 0));
+  if (!after.books.every((x) => x.loaned === false && x.loanedTo === '' && x.loanedAt === 0)) errors.push('scenario 6: lending fields wrong');
   if (statuses.h1 !== 'read' || statuses.h2 !== 'reading' || statuses.h3 !== 'want') errors.push('scenario 6: a status changed');
   if (after.reasons.filter((r) => r === 'Before an app update').length < 2) errors.push('scenario 6: no copy saved before the v4 upgrade');
   if (after.books.length !== 3) errors.push('scenario 6: books lost');
@@ -140,14 +143,15 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
   await q.evaluate(async () => {
     const db = await import('/js/db.js');
     await db.put({ id: 'd1', title: 'Normal People', authors: ['Sally Rooney'], status: 'dnf', page: 96, pages: 273, format: '', addedAt: 1000, updatedAt: 1000 });
-    await db.put({ id: 'd2', title: 'Circe', authors: ['Madeline Miller'], status: 'read', format: 'physical', addedAt: 2000, updatedAt: 2000 });
+    await db.put({ id: 'd2', title: 'Circe', authors: ['Madeline Miller'], status: 'read', format: 'physical', loaned: true, loanedTo: 'Sam', loanedAt: 1500, addedAt: 2000, updatedAt: 2000 });
   });
   await q.reload();
   await q.waitForTimeout(800);
-  await q.click('.tab[data-go="profile"]');
+  await q.click('.tab[data-go="profile"]'); await q.click('[data-go="backup"]');
   const [dl7] = await Promise.all([q.waitForEvent('download'), q.click('#exportBtn')]);
   const file = JSON.parse(await (await import('fs')).promises.readFile(await dl7.path(), 'utf8'));
   const inFile = Object.fromEntries(file.books.map((x) => [x.id, `${x.status}/${x.format}`]));
+  const lentInFile = file.books.find((x) => x.id === 'd2');
   // A newer copy of Circe says audiobook; an older copy of Normal People says finished.
   writeFileSync(`${S}/backup7.json`, JSON.stringify({ app: 'bbs-books', books: [
     { id: 'd2', title: 'Circe', authors: ['Madeline Miller'], status: 'read', format: 'audio', addedAt: 2000, updatedAt: Date.now() + 10000 },
@@ -158,6 +162,11 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
   const merged = Object.fromEntries((await q.evaluate(async () => (await import('/js/db.js')).getAll())).map((x) => [x.id, `${x.status}/${x.format}/${x.page || 0}`]));
   console.log('7. backup file:', JSON.stringify(inFile), '| after merge:', JSON.stringify(merged));
   if (inFile.d1 !== 'dnf/' || inFile.d2 !== 'read/physical') errors.push('scenario 7: backup lost status or format');
+  if (!(lentInFile.loaned === true && lentInFile.loanedTo === 'Sam' && lentInFile.loanedAt === 1500)) errors.push('scenario 7: backup lost the loan');
+  // The newer Circe in the backup has no loan: as with every field, the newer copy wins.
+  const circe7 = (await q.evaluate(async () => (await import('/js/db.js')).getAll())).find((x) => x.id === 'd2');
+  console.log('   loan after merge (newer copy wins):', circe7.loaned, JSON.stringify(circe7.loanedTo));
+  if (circe7.loaned !== false) errors.push('scenario 7: newer copy did not win for lending');
   if (merged.d1 !== 'dnf//96' || merged.d2 !== 'read/audio/0') errors.push('scenario 7: merge restore wrong');
   await ctx7.close();
 }

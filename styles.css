@@ -34,6 +34,7 @@
   --ink: #15141C;
   --ink-2: #3F3E4C;
   --accent: #2F5BD9;
+  --accent-rgb: 47, 91, 217;   /* the accent as r, g, b, for the accent-tinted shadows; follows the chosen accent */
   --on-accent: var(--white);
   --tint: #E9EFFC;
   --tint-border: #D9E3FA;
@@ -91,15 +92,15 @@
   --radius-pill: 999px;
 
   /* shadow */
-  --shadow-card: 0 0 0 1px rgba(47, 91, 217, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 20px 50px rgba(47, 91, 217, 0.14);
-  --shadow-chip-on: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 6px 18px rgba(47, 91, 217, 0.13);
+  --shadow-card: 0 0 0 1px rgba(var(--accent-rgb), 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 20px 50px rgba(var(--accent-rgb), 0.14);
+  --shadow-chip-on: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 6px 18px rgba(var(--accent-rgb), 0.13);
   --shadow-chip-off: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --shadow-cover: 0 14px 22px -10px rgba(21, 20, 28, 0.4);
   --shadow-cover-sm: 0 14px 24px -12px rgba(21, 20, 28, 0.5);
-  --shadow-ledge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 18px -8px rgba(47, 91, 217, 0.25);
+  --shadow-ledge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 18px -8px rgba(var(--accent-rgb), 0.25);
   --ripple: rgba(255, 255, 255, 0.9);          /* start-up ripple: white rings (see DESIGN_DECISIONS.md) */
   --ripple-soft: rgba(255, 255, 255, 0.4);
-  --ripple-edge: rgba(47, 91, 217, 0.35);       /* a touch of cobalt so rings read on pale washes */
+  --ripple-edge: rgba(var(--accent-rgb), 0.35);       /* a touch of cobalt so rings read on pale washes */
   /* Gold, for milestone celebrations only (see DESIGN_DECISIONS.md). Text golds keep 3:1 on every wash at 36px. */
   --gold-text: #7A5A12;        /* darkest gold: the ends of the headline gradient */
   --gold-text-light: #9A6F0B;
@@ -113,8 +114,8 @@
   --gold-mid: #E0A82E;
   --gold-deep: #C9971C;
   --shadow-ledge-plain: 0 6px 14px -8px rgba(21, 20, 28, 0.22); /* plain white ledges (owner's request, see DESIGN_DECISIONS.md) */
-  --shadow-tabbar: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 24px 50px -12px rgba(47, 91, 217, 0.3);
-  --shadow-scan: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 28px -6px rgba(47, 91, 217, 0.65);
+  --shadow-tabbar: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 24px 50px -12px rgba(var(--accent-rgb), 0.3);
+  --shadow-scan: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 28px -6px rgba(var(--accent-rgb), 0.65);
 
   /* blur */
   --blur-wash: 50px;
@@ -134,9 +135,19 @@
   --size-dot-eyebrow: 7px;
   --size-dot-tab: 4px;
 
+  --size-dot-loan: 12px;      /* the dot on a loaned-out cover (owner's request, see DESIGN_DECISIONS.md) */
+
   /* motion (not specified by the guide; see DESIGN_DECISIONS.md) */
   --ease: cubic-bezier(.22, .8, .3, 1);
 }
+
+/* Accent choices (Profile → Appearance; owner's request, see DESIGN_DECISIONS.md).
+   Each keeps white text on the accent and accent text on its tint at AA (4.5:1 or more).
+   Cobalt is the guide's own accent and the default. */
+:root[data-accent="berry"]  { --accent: #B02A5E; --accent-rgb: 176, 42, 94;  --tint: #FAE8EF; --tint-border: #F4D3E0; }
+:root[data-accent="plum"]   { --accent: #7A45C2; --accent-rgb: 122, 69, 194; --tint: #F1EAFB; --tint-border: #E3D6F6; }
+:root[data-accent="forest"] { --accent: #2A7049; --accent-rgb: 42, 112, 73;  --tint: #E6F3EC; --tint-border: #D0E8DA; }
+:root[data-accent="teal"]   { --accent: #1B6F75; --accent-rgb: 27, 111, 117; --tint: #E4F3F4; --tint-border: #CDE7E9; }
 
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
@@ -476,6 +487,63 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .snapshot span small { font-size: 12px; font-weight: 600; color: var(--ink-2); }
 .snapshot .text-btn { flex: none; color: var(--ink); }
 
+/* Profile hub and its sub-screens (Stats, Backup, Appearance, Settings) */
+.hub { gap: 0; padding-top: 4px; padding-bottom: 4px; }
+.hub-row { width: 100%; min-height: 52px; text-align: left; }
+.hub-row span { flex: 1; }
+.hub-row + .hub-row { border-top: 1px solid var(--glass-card-border); }
+.row-go { width: 18px; height: 18px; color: var(--ink-2); }
+.sub-top { padding-top: max(12px, calc(env(safe-area-inset-top) + 12px)); }
+.sub-screen .app-header { min-height: 0; padding-top: 10px; }
+
+/* Appearance: accent swatches */
+.swatches { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 52px; padding: 6px 0; border: 0; background: none; font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-2); }
+.swatch i { width: 36px; height: 36px; border-radius: 50%; background: var(--swatch); border: 2px solid var(--white); box-shadow: var(--shadow-chip-on); }
+.swatch[aria-checked="true"] { color: var(--ink); }
+.swatch[aria-checked="true"] i { outline: 2px solid var(--swatch); outline-offset: 3px; }
+
+/* Games */
+.game-card { flex-direction: row; align-items: center; gap: 14px; width: 100%; text-align: left; color: var(--ink); }
+.game-card:active { transform: scale(.98); }
+.game-icon { display: grid; place-items: center; width: 48px; height: 48px; flex: none; border-radius: 50%; background: var(--tint); border: 1px solid var(--tint-border); color: var(--accent); }
+.game-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.game-name { font-size: 16px; line-height: 22px; font-weight: 700; }
+.game-title { margin-top: 8px; font-family: var(--font-display); font-size: 36px; line-height: 42px; font-weight: 500; letter-spacing: -0.02em; }
+.wheel-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 24px; }
+.wheel-wrap { position: relative; width: min(84vw, 320px); aspect-ratio: 1; }
+.wheel { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: var(--shadow-card); }
+.wheel-pointer { position: absolute; left: 50%; top: -6px; translate: -50% 0; width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 24px solid var(--accent); filter: drop-shadow(0 3px 4px rgba(21, 20, 28, 0.25)); }
+.wheel-hub { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 44px; height: 44px; border-radius: 50%; background: var(--white); border: 1px solid var(--outline); box-shadow: var(--shadow-chip-on); }
+.wheel-hub::after { content: ""; position: absolute; inset: 15px; border-radius: 50%; background: var(--accent); }
+.wheel-now { min-height: 26px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: 21px; line-height: 26px; font-weight: 400; text-align: center; }
+.spin-btn { min-width: 160px; }
+.spin-pick { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; text-align: center; }
+.pick-book { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 8px 0; border: 0; background: none; color: var(--ink); }
+.pick-cover { position: relative; width: min(44vw, 180px); margin-bottom: 14px; }
+.pick-cover .ph-title { font-size: 21px; }
+.pick-title { font-family: var(--font-display); font-size: 36px; line-height: 42px; font-weight: 400; letter-spacing: -0.02em; overflow-wrap: break-word; max-width: 100%; }
+.pick-author { font-size: 14px; line-height: 18px; font-weight: 700; color: var(--ink-2); }
+.spin-pick.show .pick-cover { animation: pick-in .7s cubic-bezier(.2, 1.3, .4, 1) both; }
+.spin-pick.show .pick-cover .shine { position: absolute; inset: 0; border-radius: var(--radius-cover); background: linear-gradient(105deg, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, .6) 50%, rgba(255, 255, 255, 0) 65%); transform: translateX(-130%); animation: pick-shine .9s var(--ease) .45s forwards; pointer-events: none; }
+@keyframes pick-in { from { opacity: 0; transform: scale(.4) rotate(-8deg); } 60% { opacity: 1; transform: scale(1.06) rotate(2deg); } to { opacity: 1; transform: none; } }
+@keyframes pick-shine { to { transform: translateX(130%); } }
+
+/* Book shower: covers tumble over whatever screen she is on */
+.shower { position: fixed; inset: 0; z-index: 50; overflow: hidden; cursor: pointer; touch-action: none; }
+.shower .cover { position: absolute; left: 0; top: 0; will-change: transform; box-shadow: var(--shadow-cover-sm); }
+.shower .ph-title { font-size: 12px; }
+.shower .ph-author { display: none; }
+.shower-hint { position: absolute; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); translate: -50% 0; }
+.shower.fading { opacity: 0; transition: opacity .5s var(--ease); }
+
+/* Lending */
+.loan-details { display: flex; flex-direction: column; gap: 8px; }
+.book { position: relative; }
+.loan-dot { position: absolute; top: -4px; right: -4px; z-index: 1; width: var(--size-dot-loan); height: var(--size-dot-loan); border-radius: 50%; background: var(--accent); border: 2px solid var(--white); box-shadow: var(--shadow-chip-on); box-sizing: content-box; pointer-events: none; }
+.detail-cover { position: relative; }
+.detail-cover .loan-dot { top: -5px; right: -5px; }
+
 /* ---------- TabBar ---------- */
 .tabbar {
   position: fixed;
@@ -513,7 +581,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   box-shadow: var(--shadow-scan);
   transition: transform .18s var(--ease), box-shadow .18s var(--ease);
 }
-.scan-btn:active { transform: scale(.94); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 16px -6px rgba(47, 91, 217, .65); }
+.scan-btn:active { transform: scale(.94); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 16px -6px rgba(var(--accent-rgb), .65); }
 
 /* ---------- Buttons ---------- */
 .primary-btn {
@@ -645,7 +713,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   background: var(--white);
   color: var(--ink);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
-  box-shadow: 0 -20px 50px rgba(47, 91, 217, 0.14);
+  box-shadow: 0 -20px 50px rgba(var(--accent-rgb), 0.14);
   transform: translateY(105%);
   visibility: hidden;
   transition: transform .32s var(--ease), visibility 0s linear .32s;

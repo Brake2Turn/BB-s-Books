@@ -50,7 +50,7 @@ await p.fill('#fbMessage', 'second');
 await p.click('#fbSend');
 await p.waitForTimeout(400);
 console.log('on failure:', await p.textContent('#fbStatus'), '| message kept:', await p.inputValue('#fbMessage'));
-await p.click('.tab[data-go="stats"]');
+await p.click('.tab[data-go="profile"]'); await p.click('[data-go="stats"]');
 await p.screenshot({ path: `${S}/F-stats.png` });
 console.log('errors:', errors);
 await b.close();

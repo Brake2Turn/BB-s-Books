@@ -52,7 +52,16 @@ if (!only || only === 'picker') {
   const tiles = await p.locator('#resultSheet .cover-option:not(.take-photo)').count();
   console.log('picker options:', tiles, '|', await p.textContent('#resultSheet .cover-note'));
   console.log('selected first:', await p.locator('#resultSheet .cover-option[aria-pressed="true"] img').getAttribute('src'));
-  await p.locator('#resultSheet .cover-option:not(.take-photo)').nth(3).click();
+  // Picking a cover changes it straight away and leaves the row where it was scrolled to.
+  const rowScroll = (sel) => p.evaluate((q) => document.querySelector(q).scrollLeft, sel);
+  await p.evaluate(() => { document.querySelector('#resultSheet .cover-row').scrollLeft = 60; });
+  const before = await rowScroll('#resultSheet .cover-row');
+  await p.locator('#resultSheet .cover-option:not(.take-photo)').nth(3).evaluate((el) => el.click());
+  await p.waitForTimeout(120);
+  const instant = await p.locator('#resultSheet .cover-option[aria-pressed="true"]').count();
+  console.log('row scroll before/after pick:', before, await rowScroll('#resultSheet .cover-row'), '| chosen at once:', instant === 1);
+  if (await rowScroll('#resultSheet .cover-row') !== before) errors.push('cover row jumped back after a pick');
+  if (instant !== 1) errors.push('cover choice not shown straight away');
   await p.waitForTimeout(500);
   const chosen = await p.locator('#resultSheet .cover-option[aria-pressed="true"] img').getAttribute('src');
   console.log('picked thumb:', chosen, '| result cover now:', await p.locator('.result-cover img').last().getAttribute('src'));
@@ -65,7 +74,16 @@ if (!only || only === 'picker') {
   await p.click('#changeCoverBtn');
   await p.waitForSelector('#coverCard .cover-picker[data-state="ready"]', { timeout: 15000 });
   await p.screenshot({ path: `${S}/P-detail.png` });
-  await p.locator('#coverCard .cover-option:not(.take-photo)').first().click();
+  await p.evaluate(() => { document.querySelector('#coverCard .cover-row').scrollLeft = 80; });
+  const scrolled = await rowScroll('#coverCard .cover-row');
+  const pageTiles = p.locator('#coverCard .cover-option:not(.take-photo)');
+  await pageTiles.nth((await pageTiles.count()) - 1).evaluate((el) => el.click()); // a tap, without Playwright scrolling it into view
+  await p.waitForTimeout(150);
+  const savedAtOnce = (await books(p))[0].cover;
+  const rowAfter = await rowScroll('#coverCard .cover-row');
+  console.log('book page: row scroll', scrolled, '->', rowAfter, '| saved at once:', savedAtOnce);
+  if (rowAfter !== scrolled) errors.push('book page cover row jumped back after a pick');
+  if (!(await p.locator('.detail-cover img').getAttribute('src')).includes(savedAtOnce.split('?')[0].slice(-12))) errors.push('book page cover did not change straight away');
   await p.waitForTimeout(600);
   console.log('book page change saved:', (await books(p))[0].cover);
   await ctx.close();

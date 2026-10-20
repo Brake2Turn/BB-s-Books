@@ -4,6 +4,9 @@ const GENRE = {"The Secret History": "Literary fiction", "Circe": "Fantasy", "Pi
 // How the finished samples were read.
 const FORMAT = {"The Secret History": "physical", "Circe": "audio", "Rebecca": "physical", "Pride and Prejudice": "audio", "Jane Eyre": "physical"};
 
+// Lent out, and to whom.
+const LOANED = {"Circe": "Sam", "Rebecca": ""};
+
 const SAMPLES = [
   ['The Secret History', 'Donna Tartt', '9781400031702', 559, 'read', 5, 0, 'A small circle of classics students at a remote Vermont college drift beyond the bounds of ordinary morality, and one of them does not survive it.'],
   ['Circe', 'Madeline Miller', '9780316556347', 393, 'read', 4, 0, 'The witch of Aiaia, banished by the gods, tells her own story: of nymphs and monsters, mortals and Olympians, and the power she makes for herself.'],
@@ -33,6 +36,9 @@ export function sampleBooks() {
     status,
     genre: GENRE[title] || '',
     format: FORMAT[title] || '',
+    loaned: title in LOANED,
+    loanedTo: LOANED[title] || '',
+    loanedAt: title in LOANED ? now - (i + 2) * 86400000 : 0,
     readingAt: status === 'reading' ? now - i * 3600000 : undefined,
     rating,
     blurb,
