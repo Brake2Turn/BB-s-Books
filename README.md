@@ -107,6 +107,7 @@ Browser tests drive the real app in headless Chromium with Playwright. They use 
 | `start-screen` | Greeting by time of day, tap and Enter open the library |
 | `cover-reading` | Reads five real-looking covers and picks the right book among decoys |
 | `offline` | App opens with the server down |
+| `updates` | An update arrives whole: no mix of new files and older copies the browser kept |
 
 ## Project layout
 

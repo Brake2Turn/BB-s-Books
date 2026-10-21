@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v15';
+const VERSION = 'v16';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 const MAX_COVERS = 400; // oldest covers are dropped beyond this, so the cache can't grow forever
@@ -37,7 +37,10 @@ const SHELL_FILES = [
 const LAZY = /\/vendor\/tesseract\//;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+  // 'reload' skips the browser's own cache, so a new version never stores an older copy of a file.
+  event.waitUntil(caches.open(SHELL)
+    .then((c) => c.addAll(SHELL_FILES.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -75,8 +78,13 @@ self.addEventListener('fetch', (event) => {
       return;
     }
     // Everything else in the app: network first so updates arrive, the cache when offline.
+    // 'no-cache' asks the server whether each file changed (cheap when it hasn't), so the page
+    // never mixes a new file with an older copy the browser kept: that left icons missing.
+    const fresh = req.mode === 'navigate'
+      ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' })
+      : new Request(req, { cache: 'no-cache' });
     event.respondWith(
-      fetch(req)
+      fetch(fresh)
         .then((res) => keep(SHELL, req, res))
         .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || Response.error())),
     );

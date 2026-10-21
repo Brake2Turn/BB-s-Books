@@ -50,6 +50,8 @@ Where the guide is silent (camera, sheets, the book page, motion), follow `DESIG
   - In Playwright, the route registered last wins.
   - `context.setOffline` doesn't reach the service worker, so `offline.mjs` stops the server instead.
   - Don't use a fake clock around animations.
+  - Request interception (`route`) switches Chromium's HTTP cache off, so `updates.mjs` uses none. Keep it that way, or it can't see stale-cache problems.
+  - The service worker fetches app files with `cache: 'no-cache'` (and installs with `cache: 'reload'`), so an update never mixes new files with older copies the browser kept. Keep that when changing `sw.js`.
   - When killing stray servers, use `pkill -f '[h]ttp-server'` so the pattern doesn't match your own shell.
 
 ## Her library's data: never lose it
@@ -82,7 +84,7 @@ On `feature/content-v2` (not live yet):
 - Profile as a hub (Stats, Backup, Appearance with accent colours, Settings).
 - Lending (loaned-out marking, filter, sort and cover dot).
 
-That branch takes `DATA_VERSION` to 4 (adds `format`, `loaned`, `loanedTo` and `loanedAt`; one bump, since 4 never went live) and `sw.js` to `v15`.
+That branch takes `DATA_VERSION` to 4 (adds `format`, `loaned`, `loanedTo` and `loanedAt`; one bump, since 4 never went live) and `sw.js` to `v16`.
 
 ## Feedback
 
