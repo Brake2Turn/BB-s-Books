@@ -4,10 +4,12 @@ import { coverEl } from './covers.js';
 import { icon, hydrateIcons } from './icons.js';
 import { sampleBooks } from './demo.js';
 import { GENRES } from './genres.js';
-import { genreFor } from './lookup.js';
+import { genreFor, seriesFor } from './lookup.js';
 import { coverPicker } from './cover-picker.js';
 import { ripple } from './ripple.js';
 import * as games from './games.js';
+import * as goals from './goal.js';
+import * as series from './series.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -63,6 +65,10 @@ const els = {
   dLoanTo: $('#dLoanTo'),
   dLoanSince: $('#dLoanSince'),
   accentPicker: $('#accentPicker'),
+  goalCard: $('#goalCard'),
+  dSeries: $('#dSeries'),
+  dSeriesNo: $('#dSeriesNo'),
+  seriesNames: $('#seriesNames'),
 };
 
 // Feedback is emailed by FormSubmit (formsubmit.co), which needs no server of our own.
@@ -170,7 +176,7 @@ function setProgress(track, pct) {
 // ---------- Screens ----------
 
 // Screens reached from Profile; the Profile tab stays lit while one is open.
-const PROFILE_SCREENS = ['stats', 'backup', 'appearance', 'settings'];
+const PROFILE_SCREENS = ['stats', 'backup', 'appearance', 'feedback', 'settings'];
 
 function showScreen(name) {
   screen = name;
@@ -262,11 +268,25 @@ function renderGenreFilter() {
 }
 
 /** Home: the reading card, then every book, searchable and filterable. */
+/** The reading goal, small, under the reading card. */
+function renderGoalCard() {
+  const g = goals.current();
+  const p = g && goals.progress(g, books);
+  els.goalCard.hidden = !p;
+  if (!p) return;
+  els.goalCard.querySelector('.goal-count').textContent = `${fmt(p.done)} of ${fmt(g.target)}`;
+  setProgress(els.goalCard.querySelector('.track'), p.pct);
+  els.goalCard.querySelector('.goal-caption').textContent = p.caption;
+  els.goalCard.setAttribute('aria-label', `Reading goal: ${p.done} of ${goals.goalLine(g)}. ${p.caption}`);
+}
+
 function renderHome() {
   renderReadingCard();
-  // Without the reading card the chips move up onto the white zone, where glass reads grey: use tint there.
-  els.filterRow.classList.toggle('glass-chips', !els.readingCard.hidden);
-  els.filterRow.classList.toggle('tint-chips', els.readingCard.hidden);
+  renderGoalCard();
+  // Without the reading or goal card the chips move up onto the white zone, where glass reads grey: use tint there.
+  const cards = !els.readingCard.hidden || !els.goalCard.hidden;
+  els.filterRow.classList.toggle('glass-chips', cards);
+  els.filterRow.classList.toggle('tint-chips', !cards);
   renderGenreFilter();
 
   const q = normalise(els.search.value);
@@ -361,15 +381,17 @@ async function load() {
     books = await db.getAll();
   }
   await protectLibrary();
+  await goals.load();
   render();
-  fillMissingGenres();
+  // One gentle lookup at a time: genres first, then series.
+  fillMissingGenres().then(fillMissingSeries);
 }
 
 // ---------- Keeping her library safe ----------
 
 // Bump when the shape of a book record changes. Older records are upgraded in normaliseBook,
 // after a safety copy of the library is taken.
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 const KEEP_SNAPSHOTS = 5; // each copy includes any cover photos, so keep a few, not dozens
 
 /**
@@ -391,6 +413,10 @@ function normaliseBook(b) {
     loaned: false, // lent to someone
     loanedTo: '', // who has it (optional)
     loanedAt: 0, // when it was lent
+    finishedAt: 0, // when she marked it Finished (0 = before this was recorded); reading goals count from it
+    seriesNo: null, // its number in its series ('series', the name, is filled in by a lookup, like 'genre')
+    seriesTotal: null, // books in the series so far (copied onto every book of the series)
+    seriesNext: false, // a new book in the series is on the way (copied onto every book of the series)
     rating: 0,
     review: '',
     ...b,
@@ -525,6 +551,23 @@ async function fillMissingGenres() {
   fillMissingGenres.running = false;
 }
 
+/** Same for series: books from before series existed are looked up once (no 'series' field yet). */
+async function fillMissingSeries() {
+  if (fillMissingSeries.running) return;
+  fillMissingSeries.running = true;
+  for (const b of books.filter((x) => x.series === undefined)) {
+    if (!navigator.onLine) break;
+    try {
+      const s = await seriesFor(b);
+      const latest = books.find((x) => x.id === b.id);
+      if (latest && latest.series === undefined) await saveRecord({ ...latest, series: s.name, seriesNo: latest.seriesNo ?? s.no });
+      if (s.name) render();
+    } catch { /* offline or rate-limited: try again next time the app opens */ }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  fillMissingSeries.running = false;
+}
+
 // ---------- Hooks for the scan screen ----------
 
 async function saveBook(data) {
@@ -545,6 +588,11 @@ async function saveBook(data) {
     loaned: false,
     loanedTo: '',
     loanedAt: 0,
+    finishedAt: 0,
+    series: data.series || '',
+    seriesNo: data.seriesNo ?? null,
+    seriesTotal: null,
+    seriesNext: false,
     rating: 0,
     review: '',
     addedAt: Date.now(),
@@ -617,6 +665,29 @@ function renderLoan() {
   els.dLoanSince.textContent = since ? `${who ? `With ${who}` : 'Loaned out'} since ${since}` : '';
 }
 
+/** Series name and number on the book page; the name suggests series already on her shelves. */
+function renderSeriesFields() {
+  els.dSeries.value = current.series || '';
+  els.dSeriesNo.value = current.seriesNo ?? '';
+  els.seriesNames.replaceChildren(...series.groups(books).map((g) => new Option(g.name, g.name)));
+}
+
+async function saveSeriesFields() {
+  if (!current) return;
+  const name = els.dSeries.value.replace(/\s+/g, ' ').trim();
+  const no = els.dSeriesNo.value === '' ? null : Number(els.dSeriesNo.value);
+  if (name === (current.series || '') && no === (current.seriesNo ?? null)) return;
+  // Joining a series picks up what's known about it from the books already in it.
+  const known = name && series.groups(books.filter((b) => b.id !== current.id)).find((g) => g.key === name.toLowerCase());
+  current = await saveRecord({
+    ...current,
+    series: name,
+    seriesNo: name ? no : null,
+    ...(known ? { seriesTotal: known.total, seriesNext: known.next } : name ? {} : { seriesTotal: null, seriesNext: false }),
+  });
+  render();
+}
+
 /** The big cover on the book page, with the loan dot when it's lent out. */
 function renderDetailCover() {
   els.dCover.replaceChildren(coverEl(current), ...(current.loaned ? [loanDot()] : []));
@@ -639,6 +710,7 @@ function openDetail(id, originEl) {
   renderStars();
   renderStatus();
   renderLoan();
+  renderSeriesFields();
   els.dReview.value = c.review || '';
   els.saved.textContent = c.reviewedAt && c.review ? `Saved ${new Date(c.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : '';
   closeCoverPicker();
@@ -669,7 +741,9 @@ els.status.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-status]');
   if (!b || !current) return;
   const status = current.status === b.dataset.status ? '' : b.dataset.status;
-  current = await saveRecord({ ...current, status, readingAt: status === 'reading' ? Date.now() : current.readingAt });
+  // finishedAt dates the finish for reading goals; leaving Finished takes the book off the goal again.
+  const finishedAt = status === 'read' ? (current.status === 'read' ? current.finishedAt : Date.now()) : 0;
+  current = await saveRecord({ ...current, status, finishedAt, readingAt: status === 'reading' ? Date.now() : current.readingAt });
   renderStatus();
   render();
 });
@@ -704,6 +778,9 @@ async function saveLoanTo() {
 }
 els.dLoanTo.addEventListener('input', () => { clearTimeout(loanTimer); loanTimer = setTimeout(saveLoanTo, 600); });
 els.dLoanTo.addEventListener('change', saveLoanTo);
+
+els.dSeries.addEventListener('change', saveSeriesFields);
+els.dSeriesNo.addEventListener('change', saveSeriesFields);
 
 els.dGenre.addEventListener('change', async () => {
   if (!current) return;
@@ -943,10 +1020,20 @@ initSplash();
 document.body.prepend(washes.cloneNode(true));
 els.detail.prepend(washes.cloneNode(true));
 $('#spinner').prepend(washes.cloneNode(true));
+$('#goalDlg').prepend(washes.cloneNode(true));
+$('#seriesDlg').prepend(washes.cloneNode(true));
 hydrateIcons();
 scan.init({ findDuplicate, saveBook, placeIncoming, landed, openDetail, toast, count: () => books.length });
 $('#scanner .celebrate').prepend(washes.cloneNode(true));
 games.init({ books: () => books, openDetail, toast });
+goals.init({ books: () => books, toast, changed: render });
+series.init({ books: () => books, save: saveRecord, openDetail });
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-game]');
+  if (g && g.dataset.game === 'goal') goals.open();
+  if (g && g.dataset.game === 'series') series.open();
+});
+els.goalCard.addEventListener('click', () => goals.open());
 applyAccent(pref('bbs-accent'));
 
 document.addEventListener('click', (e) => {
@@ -970,6 +1057,7 @@ els.dReview.addEventListener('input', () => { els.saved.textContent = 'Not saved
 els.detail.addEventListener('close', () => {
   closeCoverPicker();
   saveLoanTo();
+  saveSeriesFields();
   // Never lose a half-written review because she closed the book without tapping Save.
   if (current && els.dReview.value.trim() !== (current.review || '')) saveDetail(true).then(() => toast('Review saved'));
 });

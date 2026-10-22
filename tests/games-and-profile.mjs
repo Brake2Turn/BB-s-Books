@@ -39,22 +39,22 @@ const shown = (p) => p.locator('#libraryShelves .book').evaluateAll((n) => n.map
   const { ctx, p } = await setup();
   const tabs = await p.locator('.tabbar [aria-label]').evaluateAll((n) => n.map((x) => x.getAttribute('aria-label')));
   console.log('tabs:', tabs.join(', '));
-  expect(tabs.join() === 'Home,Games,Scan a book,Feedback,Profile', 'tab bar wrong');
+  expect(tabs.join() === 'Home,Activities,Scan a book,Social,Profile', 'tab bar wrong');
 
   await p.click('.tab[data-go="profile"]');
   await p.waitForTimeout(200);
   const rows = await p.locator('.hub-row').allTextContents();
   console.log('profile hub:', rows.join(' / '));
-  expect(rows.join() === 'Stats,Backup,Appearance,Settings', 'profile hub rows wrong');
+  expect(rows.join() === 'Stats,Backup,Appearance,Feedback,Settings', 'profile hub rows wrong');
   await p.screenshot({ path: `${S}/G-profile.png` });
-  for (const name of ['stats', 'backup', 'appearance', 'settings']) {
+  for (const name of ['stats', 'backup', 'appearance', 'feedback', 'settings']) {
     await p.click(`.hub-row[data-go="${name}"]`);
     await p.waitForTimeout(200);
     const visible = await p.locator(`[data-screen="${name}"]`).isVisible();
     const lit = await p.locator('.tab[aria-current="page"]').getAttribute('data-go');
     const count = await p.locator(`[data-screen="${name}"] .header-count`).innerText();
     console.log(`  ${name}: shown ${visible}, lit tab ${lit}, count "${count.replace(/\n/g, ' ')}"`);
-    expect(visible && lit === 'profile' && /14/.test(count), `${name} screen wrong`);
+    expect(visible && lit === 'profile' && /20/.test(count), `${name} screen wrong`);
     await p.click(`[data-screen="${name}"] .sub-top button`);
     await p.waitForTimeout(150);
     expect(await p.locator('[data-screen="profile"]').isVisible(), `back from ${name} doesn't return to Profile`);
@@ -163,7 +163,7 @@ const shown = (p) => p.locator('#libraryShelves .book').evaluateAll((n) => n.map
   expect(c.length > 3 && moving, 'covers not falling');
   await p.waitForTimeout(2500);
   await p.screenshot({ path: `${S}/G-shower.png` });
-  // Every cover falls eventually; all 14 appear over the run.
+  // Every cover falls eventually.
   const seen = await p.evaluate(() => new Promise((res) => {
     const titles = new Set();
     const t0 = performance.now();
@@ -221,7 +221,7 @@ const shown = (p) => p.locator('#libraryShelves .book').evaluateAll((n) => n.map
   await p.waitForTimeout(200);
   const sorted = await shown(p);
   console.log('loaned sort:', sorted.slice(0, 4).join(' · '), '…');
-  expect(sorted[0] === 'Circe' && sorted[1] === 'Rebecca' && sorted.length === 14, 'loaned sort wrong');
+  expect(sorted[0] === 'Circe' && sorted[1] === 'Rebecca' && sorted.length === 20, 'loaned sort wrong');
   await p.selectOption('#sort', 'added');
 
   // Lend Piranesi to Jo.

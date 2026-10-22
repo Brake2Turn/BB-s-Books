@@ -28,7 +28,7 @@ const expect = (ok, what) => { if (!ok) errors.push(what); };
   await p.waitForTimeout(200);
   const authors = await p.locator('#libraryShelves .book').evaluateAll((n) => n.map((x) => x.getAttribute('aria-label').replace(/, loaned out$/, '').split(', ').pop()));
   console.log('author sort:', authors.join(' · '));
-  const surnames = ['Austen', 'Brontë', 'Clarke', 'du Maurier', 'Garmus', 'Ishiguro', 'Ishiguro', 'Miller', 'Miller', 'Morgenstern', 'Rooney', 'Tartt', 'Yanagihara', 'Zevin'];
+  const surnames = ['Austen', 'Brontë', 'Clarke', 'Collins', 'Collins', 'Collins', 'du Maurier', 'Garmus', 'Ishiguro', 'Ishiguro', 'Miller', 'Miller', 'Morgenstern', 'Rooney', 'Tartt', 'Tolkien', 'Tolkien', 'Tolkien', 'Yanagihara', 'Zevin'];
   expect(authors.every((a, i) => a.endsWith(surnames[i])), 'author sort is not A to Z by surname');
   await p.screenshot({ path: `${S}/T-author-sort.png` });
   await p.selectOption('#sort', 'added');

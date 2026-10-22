@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached up front, book covers as they're viewed.
-const VERSION = 'v16';
+const VERSION = 'v17';
 const SHELL = `bbs-shell-${VERSION}`;
 const COVERS = 'bbs-covers';
 const MAX_COVERS = 400; // oldest covers are dropped beyond this, so the cache can't grow forever
@@ -22,6 +22,8 @@ const SHELL_FILES = [
   'js/ripple.js',
   'js/sound.js',
   'js/games.js',
+  'js/goal.js',
+  'js/series.js',
   'fonts/fraunces-latin-full-normal.woff2',
   'fonts/fraunces-latin-full-italic.woff2',
   'fonts/nunito-sans-latin-wght-normal.woff2',

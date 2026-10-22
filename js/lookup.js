@@ -34,6 +34,24 @@ function googleCovers(links) {
 
 const olCover = (id, size) => `https://covers.openlibrary.org/b/id/${id}-${size}.jpg`;
 
+/**
+ * Read "Harry Potter ; 2", "Discworld #8", "The Expanse, book 3" or a title ending
+ * "(Wayward Children, #4)" into { name, no }.
+ */
+export function parseSeries(text) {
+  const s = (text || '').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  const m = s.match(/^(.*?)[\s,;:#(–-]*(?:book|bk\.?|vol\.?|volume|no\.?|number|part)?\s*#?\s*(\d+(?:\.\d+)?)\)?$/i);
+  if (m && m[1].trim().length > 1) return { name: m[1].replace(/[\s,;:(–-]+$/, '').trim(), no: Number(m[2]) };
+  return { name: s.replace(/[\s,;:(–-]+$/, ''), no: null };
+}
+
+/** A series in a title, the way some databases write it: "Title (Series, #2)". */
+export function seriesFromTitle(title) {
+  const m = (title || '').match(/\(([^()]+?),?\s*#\s*(\d+(?:\.\d+)?)\)\s*$/);
+  return m ? { name: m[1].trim(), no: Number(m[2]) } : null;
+}
+
 function fromGoogle(item) {
   const v = item.volumeInfo || {};
   const ids = v.industryIdentifiers || [];
@@ -50,8 +68,11 @@ function fromGoogle(item) {
     published: v.publishedDate || '',
     pages: v.pageCount || null,
     subjects: v.categories || [],
+    ...seriesFields(seriesFromTitle(v.title)),
   };
 }
+
+const seriesFields = (s) => (s ? { series: s.name, seriesNo: s.no } : {});
 
 async function openLibraryBlurb(workKey) {
   if (!workKey) return '';
@@ -69,10 +90,12 @@ async function openLibraryByIsbn(isbn) {
   const b = data[`ISBN:${isbn}`];
   if (!b) return null;
   let workKey = '';
+  let series = null;
   try {
     const ed = await getJSON(`${OL}/isbn/${isbn}.json`);
     workKey = ed.works && ed.works[0] && ed.works[0].key;
-  } catch { /* blurb is optional */ }
+    series = parseSeries((ed.series || [])[0]);
+  } catch { /* blurb and series are optional */ }
   return {
     title: [b.title, b.subtitle].filter(Boolean).join(': '),
     authors: (b.authors || []).map((a) => a.name),
@@ -84,6 +107,7 @@ async function openLibraryByIsbn(isbn) {
     published: b.publish_date || '',
     pages: b.number_of_pages || null,
     subjects: (b.subjects || []).map((x) => x.name).slice(0, 25),
+    ...seriesFields(series),
   };
 }
 
@@ -232,6 +256,16 @@ export async function genreFor(book) {
   const items = await search(`${book.title} ${(book.authors || [])[0] || ''}`, 5);
   const same = items.find((b) => b.genre && tokens(b.title.split(':')[0]).join(' ') === want);
   return (same && same.genre) || '';
+}
+
+/** The series a book belongs to, from its edition record on Open Library. '' when none is listed. */
+export async function seriesFor(book) {
+  if (book.isbn) {
+    const ed = await getJSON(`${OL}/isbn/${book.isbn}.json`);
+    const s = parseSeries((ed.series || [])[0]);
+    if (s) return s;
+  }
+  return seriesFromTitle(book.title) || { name: '', no: null };
 }
 
 /** Fill in a blurb for a search result that came without one. */

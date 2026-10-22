@@ -104,12 +104,19 @@ console.log('5. restored oldest copy: books =', state.n, '| copies:', state.copi
     return { books, keys: await db.snapshotKeys(), last: await db.getMeta('lastSnapshot'), shown: document.querySelector('[data-count]').textContent,
       version: await db.getMeta('dataVersion'), reasons: (await db.listSnapshots()).map((c) => c.reason) };
   });
-  // Content v2 (data version 4): every book gains an empty 'format', statuses are untouched,
+  // Content v2 (data version 5): every book gains an empty 'format', statuses are untouched,
   // and a copy is saved before the upgrade.
   const statuses = Object.fromEntries(after.books.map((x) => [x.id, x.status]));
   console.log('   data version:', after.version, '| format added to all:', after.books.every((x) => x.format === ''),
     '| statuses kept:', JSON.stringify(statuses), '| copy before update:', after.reasons.includes('Before an app update'));
-  if (after.version !== 4) errors.push('scenario 6: data version not 4');
+  if (after.version !== 5) errors.push('scenario 6: data version not 5');
+  // Reading goals and series: finish dates and series details arrive empty; the series name is left
+  // for the once-only lookup (offline here), so it stays unset rather than being guessed.
+  const v5 = after.books.every((x) => x.finishedAt === 0 && x.seriesNo === null && x.seriesTotal === null && x.seriesNext === false && !('series' in x));
+  console.log('   goal and series fields added, series left for the lookup:', v5);
+  if (!v5) errors.push('scenario 6: goal/series fields wrong');
+  const goalMeta = await q.evaluate(async () => (await import('/js/db.js')).getMeta('goal', 'none'));
+  if (goalMeta !== 'none') errors.push('scenario 6: a goal appeared by itself');
   if (!after.books.every((x) => x.format === '')) errors.push('scenario 6: format not added');
   // Lending fields arrive empty: nothing is marked as loaned out by the upgrade.
   console.log('   lending fields added, all on the shelf:', after.books.every((x) => x.loaned === false && x.loanedTo === '' && x.loanedAt === 0));

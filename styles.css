@@ -113,6 +113,11 @@
   --gold: #F2C94C;
   --gold-mid: #E0A82E;
   --gold-deep: #C9971C;
+  /* The line around a series (owner's request, see DESIGN_DECISIONS.md). Each is paired with words, never colour alone. */
+  --series-complete: #C9971C;   /* gold: she has every book */
+  --series-complete-glow: rgba(242, 201, 76, 0.45);
+  --series-incomplete: #E07F22; /* orange: some are missing */
+  --series-upcoming: #5AAEE6;   /* light blue: a new book is on the way */
   --shadow-ledge-plain: 0 6px 14px -8px rgba(21, 20, 28, 0.22); /* plain white ledges (owner's request, see DESIGN_DECISIONS.md) */
   --shadow-tabbar: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.25), 0 24px 50px -12px rgba(var(--accent-rgb), 0.3);
   --shadow-scan: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 28px -6px rgba(var(--accent-rgb), 0.65);
@@ -135,7 +140,9 @@
   --size-dot-eyebrow: 7px;
   --size-dot-tab: 4px;
 
-  --size-dot-loan: 12px;      /* the dot on a loaned-out cover (owner's request, see DESIGN_DECISIONS.md) */
+  --size-dot-loan: 12px;
+  --size-cover-series: 72px;  /* a cover in a series row */
+  --size-cover-compact: 44px; /* the reading card's cover, made smaller to fit the goal card */      /* the dot on a loaned-out cover (owner's request, see DESIGN_DECISIONS.md) */
 
   /* motion (not specified by the guide; see DESIGN_DECISIONS.md) */
   --ease: cubic-bezier(.22, .8, .3, 1);
@@ -299,14 +306,35 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   backdrop-filter: blur(var(--blur-glass)) saturate(1.8);
   text-align: left;
 }
-.rc-cover { position: relative; top: calc(var(--cover-lift) * -1); width: 54px; flex: none; margin-bottom: calc(var(--cover-lift) * -1); }
-.rc-cover .cover { width: 54px; box-shadow: var(--shadow-cover-sm); padding: 6px; }
-.rc-cover .ph-title { font-size: 12px; }
+.rc-cover { position: relative; top: calc(var(--cover-lift) * -1); width: var(--size-cover-compact); flex: none; margin-bottom: calc(var(--cover-lift) * -1); }
+.rc-cover .cover { width: var(--size-cover-compact); box-shadow: var(--shadow-cover-sm); padding: 5px; }
+.rc-cover .ph-title { font-size: 10px; }
 .rc-cover .ph-author { display: none; }
 .rc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
-.rc-title { font-family: var(--font-display); font-size: 21px; line-height: 1.15; font-weight: 400; }
+.rc-title { font-family: var(--font-display); font-size: 19px; line-height: 1.15; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reading-card { padding-top: 12px; padding-bottom: 12px; }
+.rc-author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rc-author { font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-2); }
-.reading-card .track { margin-top: 8px; }
+.reading-card .track { margin-top: 6px; }
+/* Reading goal: one slim card under the reading card */
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px var(--card-pad) 11px;
+  border-radius: var(--radius-card);
+  background: var(--glass-card);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: var(--shadow-card);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.8);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.8);
+  text-align: left;
+  color: var(--ink);
+}
+.goal-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.goal-count { font-family: var(--font-display); font-size: 17px; line-height: 22px; font-weight: 400; white-space: nowrap; }
+.reading-card + .goal-card { margin-top: -6px; } /* the two cards sit as a pair */
 .rc-caption { margin-top: 4px; }
 
 /* ProgressBar */
@@ -536,6 +564,60 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .shower .ph-author { display: none; }
 .shower-hint { position: absolute; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); translate: -50% 0; }
 .shower.fading { opacity: 0; transition: opacity .5s var(--ease); }
+
+/* Reading goal questions */
+.goal-dots { display: flex; gap: 6px; margin-top: 14px; }
+.goal-dots i { width: 22px; height: var(--size-progress); border-radius: var(--radius-progress); background: var(--track); }
+.goal-dots i.on { background: var(--accent); }
+.goal-body { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+.goal-question { font-family: var(--font-display); font-size: 28px; line-height: 34px; font-weight: 400; letter-spacing: -0.01em; outline: none; }
+.goal-hint { margin-top: -4px; }
+.goal-choices { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+/* White with an outline (the tint kit), so the choices read on the white zone and the washes alike */
+.goal-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 60px; padding: 11px 18px; border-radius: var(--radius-card); background: var(--white); border: 1px solid var(--outline); text-align: left; color: var(--ink); transition: background-color .18s var(--ease); }
+.goal-choice-label { font-size: 16px; line-height: 22px; font-weight: 700; }
+.goal-choice[aria-checked="true"] { background: var(--tint); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.goal-date { margin-top: 2px; }
+.goal-stepper { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 12px; }
+.goal-step { width: 52px; height: 52px; margin: 0; font-size: 26px; line-height: 1; font-weight: 600; }
+.goal-step:disabled { opacity: .4; }
+.goal-number { min-width: 2ch; font-family: var(--font-display); font-size: 72px; line-height: 80px; font-weight: 300; letter-spacing: -0.03em; text-align: center; font-variant-numeric: tabular-nums; }
+.goal-unit { margin-top: -10px; text-align: center; font-family: var(--font-display); font-size: 21px; line-height: 26px; font-weight: 400; color: var(--ink-2); }
+.goal-summary { font-family: var(--font-display); font-size: 36px; line-height: 42px; font-weight: 400; letter-spacing: -0.02em; }
+.goal-remove { align-self: flex-start; }
+.goal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; }
+.goal-nav .primary-btn { margin-left: auto; gap: 8px; min-width: 132px; }
+.goal-nav .primary-btn .icon { display: none; width: 18px; height: 18px; }
+.goal-nav .primary-btn.has-arrow .icon { display: block; }
+
+/* Series: books side by side, overlapping, with a line around the series */
+.series-key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-2); }
+.series-key li { display: flex; align-items: center; gap: 6px; }
+.series-key i { width: 14px; height: 14px; border-radius: 4px; border: 2px solid; }
+.key-complete { border-color: var(--series-complete) !important; }
+.key-incomplete { border-color: var(--series-incomplete) !important; }
+.key-upcoming { border-color: var(--series-upcoming) !important; }
+.series-list { display: flex; flex-direction: column; gap: var(--stack); margin-top: 18px; }
+.series-card { gap: 12px; border-width: 2px; }
+.series-card[data-state="complete"] { border-color: var(--series-complete); box-shadow: var(--shadow-card), 0 0 18px var(--series-complete-glow); }
+.series-card[data-state="incomplete"] { border-color: var(--series-incomplete); }
+.series-card[data-state="upcoming"] { border-color: var(--series-upcoming); }
+.series-head { display: flex; flex-direction: column; gap: 2px; }
+.series-name { font-family: var(--font-display); font-size: 21px; line-height: 26px; font-weight: 400; }
+.series-stack { display: flex; padding: 4px 0 2px; }
+.series-book { position: relative; flex: none; width: var(--size-cover-series); padding: 0; border: 0; background: none; border-radius: var(--radius-cover); }
+/* Each cover tucks well under the one after it; long series squeeze closer so they fit the card. */
+.series-book + .series-book { margin-left: min(-34px, max(calc(-1 * var(--size-cover-series) + 8px), calc((100% - var(--size-cover-series)) / (var(--n) - 1) - var(--size-cover-series)))); }
+.series-book .cover { box-shadow: var(--shadow-cover-sm), -2px 0 6px rgba(21, 20, 28, 0.12); }
+.series-book .ph-title { font-size: 10px; }
+.series-book .ph-author { display: none; }
+.series-book:active { transform: translateY(-4px); }
+.series-edit-btn { align-self: flex-start; min-height: 44px; margin: -6px 0 -8px; }
+.series-details { display: flex; flex-direction: column; gap: 10px; }
+.series-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.series-total input { width: 96px; }
+.series-fields { display: flex; gap: 8px; }
+.series-fields .series-no { width: 84px; flex: none; }
 
 /* Lending */
 .loan-details { display: flex; flex-direction: column; gap: 8px; }

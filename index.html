@@ -55,6 +55,11 @@
             <span class="caption rc-caption"></span>
           </span>
         </button>
+        <button id="goalCard" class="goal-card" hidden>
+          <span class="goal-top"><span class="eyebrow"><i></i>Reading goal</span><span class="goal-count"></span></span>
+          <span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></span>
+          <span class="caption goal-caption"></span>
+        </button>
         <label class="field">
           <i data-icon="search"></i>
           <input id="search" type="search" placeholder="Search by title or author" autocomplete="off" aria-label="Search your library">
@@ -95,14 +100,24 @@
     </section>
 
     <!-- Games: little things to do with her books -->
-    <section class="screen" data-screen="games" aria-label="Games" hidden>
+    <section class="screen" data-screen="games" aria-label="Activities" hidden>
       <div class="white-zone" aria-hidden="true"></div>
       <header class="app-header">
-        <h1 class="app-title">Games</h1>
+        <h1 class="app-title">Activities</h1>
         <p class="header-count"><b data-count></b><span data-count-unit></span></p>
       </header>
       <p class="screen-intro">Something fun to do with your books.</p>
       <div class="stack">
+        <button class="glass-card game-card" data-game="goal">
+          <span class="game-icon"><i data-icon="target"></i></span>
+          <span class="game-text"><span class="game-name">Reading goal</span><span class="caption">Answer a few questions and set a goal to read towards.</span></span>
+          <i data-icon="forward" class="row-go"></i>
+        </button>
+        <button class="glass-card game-card" data-game="series">
+          <span class="game-icon"><i data-icon="series"></i></span>
+          <span class="game-text"><span class="game-name">Series</span><span class="caption">Every series on your shelves, and which ones are complete.</span></span>
+          <i data-icon="forward" class="row-go"></i>
+        </button>
         <button class="glass-card game-card" data-game="spinner">
           <span class="game-icon"><i data-icon="wheel"></i></span>
           <span class="game-text"><span class="game-name">Spin the wheel</span><span class="caption">The wheel picks your next read from the books you haven’t read yet.</span></span>
@@ -116,9 +131,27 @@
       </div>
     </section>
 
-    <!-- Feedback -->
-    <section class="screen" data-screen="feedback" aria-label="Feedback" hidden>
+    <!-- Social: a place for later -->
+    <section class="screen" data-screen="social" aria-label="Social" hidden>
       <div class="white-zone" aria-hidden="true"></div>
+      <header class="app-header">
+        <h1 class="app-title">Social</h1>
+        <p class="header-count"><b data-count></b><span data-count-unit></span></p>
+      </header>
+      <div class="stack">
+        <div class="glass-card list-card">
+          <p class="eyebrow"><i></i>Coming soon</p>
+          <p class="body-text">Sharing books with friends will live here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile → Feedback -->
+    <section class="screen sub-screen" data-screen="feedback" aria-label="Feedback" hidden>
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="sub-top">
+        <button class="round-btn" data-go="profile" aria-label="Back to Profile"><i data-icon="back"></i></button>
+      </div>
       <header class="app-header">
         <h1 class="app-title">Feedback</h1>
         <p class="header-count"><b data-count></b><span data-count-unit></span></p>
@@ -150,6 +183,7 @@
           <button class="row-btn hub-row" data-go="stats"><i data-icon="stats"></i><span>Stats</span><i data-icon="forward" class="row-go"></i></button>
           <button class="row-btn hub-row" data-go="backup"><i data-icon="download"></i><span>Backup</span><i data-icon="forward" class="row-go"></i></button>
           <button class="row-btn hub-row" data-go="appearance"><i data-icon="palette"></i><span>Appearance</span><i data-icon="forward" class="row-go"></i></button>
+          <button class="row-btn hub-row" data-go="feedback"><i data-icon="feedback"></i><span>Feedback</span><i data-icon="forward" class="row-go"></i></button>
           <button class="row-btn hub-row" data-go="settings"><i data-icon="settings"></i><span>Settings</span><i data-icon="forward" class="row-go"></i></button>
         </nav>
       </div>
@@ -236,9 +270,9 @@
   <!-- TabBar -->
   <nav class="tabbar" aria-label="Main">
     <button class="tab" data-go="home" aria-label="Home" aria-current="page"><i data-icon="home"></i><span class="tab-dot"></span></button>
-    <button class="tab" data-go="games" aria-label="Games"><i data-icon="games"></i><span class="tab-dot"></span></button>
+    <button class="tab" data-go="games" aria-label="Activities"><i data-icon="games"></i><span class="tab-dot"></span></button>
     <button id="scanBtn" class="scan-btn" aria-label="Scan a book"><i data-icon="scan"></i></button>
-    <button class="tab" data-go="feedback" aria-label="Feedback"><i data-icon="feedback"></i><span class="tab-dot"></span></button>
+    <button class="tab" data-go="social" aria-label="Social"><i data-icon="social"></i><span class="tab-dot"></span></button>
     <button class="tab" data-go="profile" aria-label="Profile"><i data-icon="profile"></i><span class="tab-dot"></span></button>
   </nav>
 
@@ -385,6 +419,15 @@
           </div>
         </section>
 
+        <section id="seriesCard" class="glass-card">
+          <p class="eyebrow"><label for="dSeries"><i></i>Series</label></p>
+          <div class="series-fields">
+            <input id="dSeries" class="glass-input" type="text" list="seriesNames" placeholder="Not part of a series" autocomplete="off">
+            <input id="dSeriesNo" class="glass-input series-no" type="number" inputmode="decimal" min="0" step="any" placeholder="No." aria-label="Number in the series">
+          </div>
+          <datalist id="seriesNames"></datalist>
+        </section>
+
         <section class="glass-card">
           <p class="eyebrow"><label for="dReview"><i></i>Your review</label></p>
           <textarea id="dReview" rows="6" placeholder="What stayed with you?"></textarea>
@@ -430,6 +473,41 @@
         <p class="caption">Tap the book to open it</p>
         <button id="spinAgain" class="text-btn">Spin again</button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- Reading goal: one question at a time -->
+  <dialog id="goalDlg" class="detail game" aria-labelledby="goalTitle">
+    <div class="detail-scroll">
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="detail-top">
+        <button class="round-btn" data-close aria-label="Back to Activities"><i data-icon="back"></i></button>
+      </div>
+      <h2 id="goalTitle" class="game-title">Reading goal</h2>
+      <div id="goalDots" class="goal-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div id="goalBody" class="goal-body"></div>
+      <div class="goal-nav">
+        <button id="goalBack" class="text-btn" type="button"><i data-icon="back"></i>Back</button>
+        <button id="goalNext" class="primary-btn" type="button"><span>Next</span><i data-icon="forward"></i></button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Series: every series on her shelves -->
+  <dialog id="seriesDlg" class="detail game" aria-labelledby="seriesTitle">
+    <div class="detail-scroll">
+      <div class="white-zone" aria-hidden="true"></div>
+      <div class="detail-top">
+        <button class="round-btn" data-close aria-label="Back to Activities"><i data-icon="back"></i></button>
+      </div>
+      <h2 id="seriesTitle" class="game-title">Series</h2>
+      <p id="seriesIntro" class="screen-intro game-intro"></p>
+      <ul class="series-key" aria-label="What the colours mean">
+        <li><i class="key-complete"></i>Complete</li>
+        <li><i class="key-incomplete"></i>Missing some</li>
+        <li><i class="key-upcoming"></i>New book coming</li>
+      </ul>
+      <div id="seriesList" class="series-list"></div>
     </div>
   </dialog>
 

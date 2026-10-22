@@ -11,14 +11,16 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - one row of dropdown pills: status, genre and sort (see "Filter dropdowns instead of chips" below)
   - every book on shelf rows of three
 - **No profile button in the header.** It was removed at the owner's request, so the AppHeader is just the title. Backup lives under Profile.
-- **Tabs:** Home, Games, Scan (centre), Feedback, Profile, keeping the guide's four tabs around Scan. Games took Stats' place at the owner's request, and Stats moved into Profile.
-- **Profile tab:** a hub. Under the header, one glass card of rows (Stats, Backup, Appearance, Settings), each with its icon and a chevron, split by the card's hairline like the Stats rows.
+- **Tabs:** Home, Activities, Scan (centre), Social, Profile, keeping the guide's four tabs around Scan. At the owner's request, Activities (first called Games) took Stats' place, and Social took Feedback's. Stats and Feedback moved into Profile.
+- **Social tab:** a placeholder for now: the header and count, then a glass card with a "Coming soon" eyebrow and one line about what will go there.
+- **Profile tab:** a hub. Under the header, one glass card of rows (Stats, Backup, Appearance, Feedback, Settings), each with its icon and a chevron, split by the card's hairline like the Stats rows.
   - Each row opens its own screen with the same frame: a tint back button at the top left (as on the book page), then the title with the count on its row. The Profile tab stays lit on all four.
   - **Stats:** a glass card of short one-line rows (see "Stats without the hero" below).
   - **Backup:** the old Profile cards: backup, restore and automatic copies (see "Profile data card" below).
   - **Appearance:** the accent colour (see "Accent colours" below).
+  - **Feedback:** the feedback form, unchanged, now with the back button.
   - **Settings:** empty for now, with "Nothing here yet."
-- **Games tab:** the header and count, a short intro line, then one glass card per game: a tint circle with the game's icon in the accent (a mark, not text), the name in Nunito Sans 16/700, a one-line caption, and a chevron. See "Games" below.
+- **Activities tab:** renamed from Games once it held more than games. The header and count, a short intro line, then one glass card per activity (Reading goal, Series, Spin the wheel, Book shower): a tint circle with the game's icon in the accent (a mark, not text), the name in Nunito Sans 16/700, a one-line caption, and a chevron. See "Games" below.
 - **Feedback tab:**
   - The header, with a short intro line where a count would be.
   - A glass card with a message box, an optional name field and a cobalt Send button.
@@ -76,7 +78,29 @@ The guide draws one screen (Home, board H3) and says new screens should reuse it
   - Putting the book back on the shelf clears the name.
   - Home's "Show" menu gains "Loaned out", and sort gains "Loaned out" (lent books first, most recently lent at the top). Stats gains a "Loaned out" row.
 
-## Games
+## Games and activities
+
+- **Reading goal.** It opens on its own full screen, like the wheel, and asks one question at a time. Each question is in Fraunces 28 with a short hint under it. Four slim bars under the title show how far through she is, filled in the accent. A cobalt Next button with an arrow moves on, and Back steps back. Each question slides up softly as it appears (a fade with Reduce Motion).
+  1. "What's your time frame?" This month, The next three months, This year, or Pick an end date (a date field). Each choice shows when it ends ("Until 31 December").
+  2. "How many books do you want to read?" A big Fraunces number between − and + buttons. It starts at her recent pace (books finished in the last 90 days, scaled to the window) or, before she has one, about one a fortnight.
+  3. "Do audiobooks count?" Yes, or only books she reads.
+  4. "Your goal": "12 books by 31 December", and Set goal.
+  - Choices are white with an outline (the tint kit), because the questions start on the white zone and run onto the washes. The chosen one takes the tint with an accent ring.
+  - **One goal at a time.** With a goal set, the screen opens on it instead: the goal, its progress bar, "4 of 12 · On track", then Set a new goal (it says the new one replaces the old) or Remove goal.
+  - **Counting.** A book counts when she marks it Finished between the goal's start and end. Books now record `finishedAt` for this. Moving a book off Finished takes it off the goal again. Books finished before goals existed have no date, so they don't count.
+  - **On Home:** a slim glass card under the reading card: "Reading goal" eyebrow with "4 of 12" in Fraunces 17 on the right, a progress bar, and a caption: "On track", "Ahead of pace" or "A little behind", then "· 71 days left". After that it reads "Goal reached" or "Ended 31 December". Tapping it opens the goal.
+  - To fit both cards, the reading card shrank: a 44px cover (`--size-cover-compact`, was 54px), the title in Fraunces 19 on one line, and less padding. The two cards sit as a pair, a little closer together than the stack gap. The filter pills stay glass whenever either card shows.
+  - The goal is kept in the settings store on the phone, not in backup files.
+- **Series.** It opens on its own full screen with an intro ("2 series on your shelves, 1 complete") and a key of the three colours. Each series is a glass card with its name in Fraunces 21 and a status line, then its books side by side in reading order.
+  - **Covers overlap:** each cover is 72px wide (`--size-cover-series`) and tucks about 40px under the next, so roughly half of each shows. Long series squeeze closer, down to 8px showing, so they always fit the card. Tapping a cover opens that book.
+  - **The line around a series** (owner's request), 2px in place of the glass card's white edge:
+    - gold, `--series-complete` `#C9971C` with a soft gold glow, when she has every book;
+    - orange, `--series-incomplete` `#E07F22`, when some are missing;
+    - light blue, `--series-upcoming` `#5AAEE6`, when a new book is coming. This wins over the other two, since a series with a book on the way isn't finished.
+    - The status line always says the same in words ("All 3 · Complete", "3 of 5 · Missing some", "3 of 5 · New book coming"), so colour is never the only signal.
+  - Gold was milestones-only. The owner asked for gold here, so it's now milestones and complete series. Everywhere else stays gold-free.
+  - **Where series come from:** a new scan takes the series and number from Open Library's edition record, or from a title written "Title (Series, #2)". Books from before this are looked up once in the background, one at a time, like genres. On the book page a Series card has the name (suggesting series already on her shelves) and the number, both editable.
+  - **Complete or not:** only she knows how many books are out, so "Edit details" on a series card asks for "Books out so far" and has a "A new book is coming" chip. These are saved on every book in the series, so backups carry them. Until she enters a count, a series shows orange with "How many are there?".
 
 - **Spin the wheel.** It opens on its own full screen, like the book page: washes, white zone, back button, then "Spin the wheel" in the app-title style and an intro line ("5 books you haven't read yet are on the wheel").
   - The wheel holds every unread book: To be read, plus books with no status. A book nobody has marked might be unread, so it's included rather than left out.

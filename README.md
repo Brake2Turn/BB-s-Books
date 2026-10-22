@@ -18,10 +18,12 @@ It's a web app you install on a phone's home screen. There's no app store, no ac
 | **Genres** | Each book gets a genre from the book databases, tidied into a short list (Fantasy, Romance, Mystery & thriller, and so on). Filter by genre on Home, or change a book's genre on its page. |
 | **Use a photo instead** | Pick a photo of a barcode or cover rather than using the live camera. Handy on a laptop. |
 | **Home** | The library count, the book she's reading now (with progress), then every book on plain white shelves of three, with search and one row of dropdown filters: status (Reading / To be read / Finished / Did not finish), genre and sort (newest, title, author by surname, rating). Scanning a book twice won't add a duplicate. |
-| **Games** | **Spin the wheel** picks her next read from the books she hasn't read yet: it ticks as it turns, then shows the chosen cover and title, and a tap opens that book. **Book shower** tumbles every cover in the library down the screen. |
-| **Profile** | Four rows: **Stats** (finished, reading, to be read, did not finish, audiobooks, loaned out, pages read, average rating, added this month, top genre), **Backup** (see below), **Appearance** (a choice of five accent colours) and **Settings** (empty for now). |
+| **Activities** | **Reading goal** asks a few questions, one at a time (time frame, how many books, whether audiobooks count), then shows progress in a slim card on Home. One goal at a time. **Series** shows every series she has, covers overlapping in order, with a gold line when complete, orange when some are missing and light blue when a new book is coming. **Spin the wheel** picks her next read from the books she hasn't read yet. **Book shower** tumbles every cover in the library down the screen. |
+| **Social** | A placeholder: "Coming soon". |
+| **Profile** | Five rows: **Stats** (finished, reading, to be read, did not finish, audiobooks, loaned out, pages read, average rating, added this month, top genre), **Backup** (see below), **Appearance** (a choice of five accent colours), **Feedback** (see below) and **Settings** (empty for now). |
+| **Series details** | On a book's page, the series name and number. New scans fill them in from Open Library where it knows them, and older books are looked up once in the background. |
 | **Lending** | On a book's page, mark it **Loaned out** and, optionally, who has it. A small dot shows at the top right of its cover. Home can show only loaned-out books, or sort them first. |
-| **Feedback** | A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
+| **Feedback** | Under Profile. A message box that emails the app's maker directly (through FormSubmit, as the app has no server). |
 | **Book page** | Large cover, blurb, To be read / Reading / Finished / Did not finish, Physical or Audiobook for finished books, page progress (or where she stopped, for Did not finish), 5-star rating and a written review. Reviews save automatically if she closes the book without tapping Save. |
 | **Back up / Restore** | Under Profile → Backup. **Back up library** opens the share sheet, so the file can go to iCloud Drive, Google Drive, Files, email or AirDrop (computers download it). **Add books from a backup** merges: it adds missing books and updates older copies, and never deletes anything. |
 | **Automatic copies** | The app keeps up to five copies of the whole library: one a day when something has changed, plus one before any app update that changes the data and before any restore. Any copy can be restored from Profile. |
@@ -102,6 +104,7 @@ Browser tests drive the real app in headless Chromium with Playwright. They use 
 | `milestones` | Milestone wording and gold confetti, count on every tab |
 | `book-status` | To be read and Did not finish, Physical / Audiobook, author sort by surname, Stats rows, the scan chime on barcode and cover reads |
 | `games-and-profile` | Tabs, the Profile hub and its screens, accent colours, Spin the wheel, Book shower, lending (dot, filter, sort, saving) |
+| `goal-and-series` | Social, reading goal questions, one goal at a time, the Home card, counting finished books (and audiobooks), pace, Series grouping, overlap, the three line colours, editing, series lookups |
 | `home-and-feedback` | Search, filters, no profile button, feedback sending and failure |
 | `no-camera` | Clear message when there's no camera |
 | `start-screen` | Greeting by time of day, tap and Enter open the library |
@@ -126,6 +129,8 @@ js/cover-picker.js    the row of possible covers (result sheet and book page)
 js/ripple.js          the tap ripple (start-up screen and celebration)
 js/sound.js           the scan chime and the wheel's tick (Web Audio, no sound file)
 js/games.js           Spin the wheel and Book shower
+js/goal.js            Reading goal: the questions, progress, the Home card's numbers
+js/series.js          Series screen: grouping, overlapped covers, complete / missing / coming
 js/icons.js           line icons
 js/demo.js            sample shelf for ?demo
 js/db.js              on-device storage (IndexedDB)

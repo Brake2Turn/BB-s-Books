@@ -12,7 +12,7 @@ if ! curl -s -o /dev/null http://localhost:8123/; then
   trap 'kill $SERVER_PID 2>/dev/null' EXIT
   sleep 1.5
 fi
-TESTS=(data-safety scan-and-covers genres-and-celebration milestones home-and-feedback book-status games-and-profile no-camera start-screen cover-reading offline updates)
+TESTS=(data-safety scan-and-covers genres-and-celebration milestones home-and-feedback book-status games-and-profile goal-and-series no-camera start-screen cover-reading offline updates)
 [ $# -gt 0 ] && TESTS=("$@")
 failed=()
 for t in "${TESTS[@]}"; do

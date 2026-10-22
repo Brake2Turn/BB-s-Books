@@ -33,7 +33,7 @@ await p.selectOption('#statusFilter', 'read');
 console.log('finished count:', String(await p.locator('#libraryShelves .book').count()) + ' books shown');
 await p.selectOption('#statusFilter', '');
 console.log('header profile buttons:', await p.locator('.app-header button').count(), '| tabs:', await p.locator('.tabbar [aria-label]').evaluateAll(n => n.map(x => x.getAttribute('aria-label')).join(', ')));
-await p.click('.tab[data-go="feedback"]');
+await p.click('.tab[data-go="profile"]'); await p.click('[data-go="feedback"]');
 await p.waitForTimeout(300);
 await p.click('#fbSend');
 console.log('empty send:', await p.textContent('#fbStatus'), '| posted?', !!posted);
